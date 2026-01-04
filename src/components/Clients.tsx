@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
-import { Plus, Filter, LayoutList, LayoutGrid, Pencil, Trash2, X, AlertTriangle, ChevronDown } from 'lucide-react'
+import { Plus, Filter, LayoutList, LayoutGrid, Pencil, Trash2, X, AlertTriangle, ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { NewClientModal, ClientData } from './NewClientModal'
+import { utils, writeFile } from 'xlsx'
 
-// Vamos usar a mesma interface definida no modal ou estendê-la
 interface Client extends ClientData {
   id: number;
 }
@@ -11,26 +11,21 @@ export function Clients() {
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list')
   const [isModalOpen, setIsModalOpen] = useState(false)
   
-  // Estado para Edição e Exclusão
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null)
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
 
-  // Filtros
   const [socioFilter, setSocioFilter] = useState('')
   const [brindeFilter, setBrindeFilter] = useState('')
 
-  // Dados Mockados Completos
   const [clients, setClients] = useState<Client[]>([
     { id: 1, nome: 'Carlos Eduardo', empresa: 'Tech Solutions', cargo: 'CEO', brinde: 'Brinde VIP', tipoBrinde: 'Brinde VIP', quantidade: 1, socio: 'Marcio Gama', cidade: 'São Paulo/SP', cep: '01000-000', endereco: 'Av Paulista', numero: '1000', complemento: '', bairro: 'Bela Vista', estado: 'SP', email: 'carlos@tech.com', observacoes: '', outroBrinde: '' },
     { id: 2, nome: 'Ana Paula', empresa: 'Retail Corp', cargo: 'Diretora', brinde: 'Brinde Médio', tipoBrinde: 'Brinde Médio', quantidade: 2, socio: 'Rodrigo Salomão', cidade: 'Rio de Janeiro/RJ', cep: '20000-000', endereco: 'Av Rio Branco', numero: '500', complemento: '', bairro: 'Centro', estado: 'RJ', email: 'ana@retail.com', observacoes: '', outroBrinde: '' },
     { id: 3, nome: 'Roberto Alves', empresa: 'Logística SA', cargo: 'Gerente', brinde: 'Brinde Médio', tipoBrinde: 'Brinde Médio', quantidade: 1, socio: 'Marcio Gama', cidade: 'Curitiba/PR', cep: '80000-000', endereco: 'Rua XV', numero: '200', complemento: '', bairro: 'Centro', estado: 'PR', email: 'roberto@log.com', observacoes: '', outroBrinde: '' },
   ])
 
-  // Listas para os filtros
   const uniqueSocios = Array.from(new Set(clients.map(c => c.socio)))
   const uniqueBrindes = Array.from(new Set(clients.map(c => c.tipoBrinde)))
 
-  // Filtragem
   const filteredClients = useMemo(() => {
     return clients.filter(client => {
       const matchesSocio = socioFilter ? client.socio === socioFilter : true
@@ -39,7 +34,6 @@ export function Clients() {
     })
   }, [clients, socioFilter, brindeFilter])
 
-  // Funções de Ação
   const handleEdit = (client: Client) => {
     setClientToEdit(client)
     setIsModalOpen(true)
@@ -58,7 +52,7 @@ export function Clients() {
 
   const closeModal = () => {
     setIsModalOpen(false)
-    setClientToEdit(null) // Limpa o cliente em edição ao fechar
+    setClientToEdit(null)
   }
 
   const clearFilters = () => {
@@ -66,17 +60,64 @@ export function Clients() {
     setBrindeFilter('')
   }
 
+  // FUNÇÃO DE EXPORTAÇÃO (XLSX)
+  const handleExportExcel = () => {
+    // 1. Formatar os dados para o Excel
+    const dataToExport = filteredClients.map(client => ({
+      "Nome do Cliente": client.nome,
+      "Empresa": client.empresa,
+      "Cargo": client.cargo,
+      "Sócio Responsável": client.socio,
+      "Tipo de Brinde": client.tipoBrinde,
+      "Quantidade": client.quantidade,
+      "Especificação (Outro)": client.outroBrinde || '-',
+      "Email": client.email,
+      "Cidade": client.cidade,
+      "Estado": client.estado,
+      "Endereço Completo": `${client.endereco}, ${client.numero} ${client.complemento ? '- ' + client.complemento : ''} - ${client.bairro}`,
+      "CEP": client.cep,
+      "Observações": client.observacoes
+    }))
+
+    // 2. Criar uma Planilha
+    const ws = utils.json_to_sheet(dataToExport)
+
+    // 3. Ajustar largura das colunas
+    const wscols = [
+      { wch: 25 }, // Nome
+      { wch: 20 }, // Empresa
+      { wch: 15 }, // Cargo
+      { wch: 20 }, // Sócio
+      { wch: 15 }, // Brinde
+      { wch: 10 }, // Qtd
+      { wch: 20 }, // Outro
+      { wch: 25 }, // Email
+      { wch: 20 }, // Cidade
+      { wch: 5 },  // UF
+      { wch: 40 }, // Endereço
+      { wch: 10 }, // CEP
+      { wch: 30 }, // Obs
+    ]
+    ws['!cols'] = wscols
+
+    // 4. Criar o arquivo
+    const wb = utils.book_new()
+    utils.book_append_sheet(wb, ws, "Clientes Salomão")
+
+    // 5. Salvar
+    const fileName = `Gestao_Clientes_Salomao_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`
+    writeFile(wb, fileName)
+  }
+
   return (
     <div className="h-full flex flex-col relative">
       
-      {/* MODAL DE CADASTRO / EDIÇÃO */}
       <NewClientModal 
         isOpen={isModalOpen} 
         onClose={closeModal} 
         clientToEdit={clientToEdit} 
       />
 
-      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO (Aviso) */}
       {clientToDelete && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-scaleIn">
@@ -111,13 +152,12 @@ export function Clients() {
         </div>
       )}
 
-      {/* BARRA DE FERRAMENTAS */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      {/* TOOLBAR */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
         
-        {/* Filtros Estilizados */}
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 px-1">
+        {/* Filtros */}
+        <div className="flex items-center gap-3 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 px-1">
            
-           {/* Filtro Sócio (Custom Style) */}
            <div className="relative group">
              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                <Filter className="h-4 w-4" />
@@ -132,13 +172,11 @@ export function Clients() {
                   <option key={socio} value={socio}>{socio}</option>
                 ))}
              </select>
-             {/* Seta Customizada */}
              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                <ChevronDown className="h-4 w-4" />
              </div>
            </div>
 
-           {/* Filtro Brinde (Custom Style) */}
            <div className="relative group">
              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                <Filter className="h-4 w-4" />
@@ -161,7 +199,7 @@ export function Clients() {
            {(socioFilter || brindeFilter) && (
              <button 
                onClick={clearFilters}
-               className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center px-2 py-1 bg-red-50 rounded transition-colors"
+               className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center px-2 py-1 bg-red-50 rounded transition-colors whitespace-nowrap"
              >
                <X className="h-3 w-3 mr-1" /> Limpar
              </button>
@@ -169,7 +207,6 @@ export function Clients() {
 
            <div className="h-6 w-px bg-gray-300 mx-2 hidden md:block"></div>
 
-           {/* Alternador de Visualização */}
            <div className="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
               <button 
                 onClick={() => setViewMode('list')}
@@ -188,17 +225,27 @@ export function Clients() {
            </div>
         </div>
 
-        {/* Botão Adicionar */}
-        <button 
-          onClick={() => { setClientToEdit(null); setIsModalOpen(true); }}
-          className="flex items-center px-5 py-2.5 bg-[#112240] text-white rounded-lg hover:bg-[#1a3a6c] transition-all shadow-md hover:shadow-lg whitespace-nowrap transform hover:-translate-y-0.5"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Novo Cliente
-        </button>
+        {/* Botões de Ação */}
+        <div className="flex items-center gap-3 w-full xl:w-auto">
+            {/* BOTÃO EXCEL (VERDE) */}
+            <button 
+              onClick={handleExportExcel}
+              className="flex-1 xl:flex-none flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-md hover:shadow-lg whitespace-nowrap transform hover:-translate-y-0.5"
+            >
+              <FileSpreadsheet className="h-5 w-5 mr-2" />
+              Exportar Excel
+            </button>
+
+            <button 
+              onClick={() => { setClientToEdit(null); setIsModalOpen(true); }}
+              className="flex-1 xl:flex-none flex items-center justify-center px-5 py-2.5 bg-[#112240] text-white rounded-lg hover:bg-[#1a3a6c] transition-all shadow-md hover:shadow-lg whitespace-nowrap transform hover:-translate-y-0.5"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Novo Cliente
+            </button>
+        </div>
       </div>
 
-      {/* LISTAGEM */}
       <div className="flex-1 overflow-auto pb-4">
         
         {filteredClients.length === 0 ? (
@@ -251,7 +298,6 @@ export function Clients() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.cidade}</td>
                         
-                        {/* NOVAS AÇÕES (EDITAR / EXCLUIR) */}
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
