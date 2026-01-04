@@ -3,7 +3,8 @@ import { supabase } from './lib/supabase'
 import Login from './Login'
 import { Sidebar } from './components/Sidebar'
 import { Clients } from './components/Clients'
-import { Settings } from './components/Settings' // <--- IMPORTAR AQUI
+import { Settings } from './components/Settings'
+import { IncompleteClients } from './components/IncompleteClients' // <--- IMPORTADO
 
 export default function App() {
   const [session, setSession] = useState<any>(null)
@@ -13,7 +14,7 @@ export default function App() {
   const moduleDescriptions: Record<string, string> = {
     dashboard: 'Visão geral de performance e indicadores chave.',
     clientes: 'Gerencie a base de prospects e clientes ativos.',
-    incompletos: 'Cadastros que necessitam de enriquecimento de dados.',
+    incompletos: 'Atenção: Cadastros que necessitam de preenchimento.',
     kanban: 'Pipeline visual de negociações e status.',
     manual: 'Documentação e procedimentos operacionais padrão.',
     historico: 'Log de atividades e auditoria do sistema.',
@@ -87,12 +88,13 @@ export default function App() {
             )}
 
             {activePage === 'clientes' && <Clients />}
+            
+            {/* NOVO MÓDULO RENDERIZADO */}
+            {activePage === 'incompletos' && <IncompleteClients />}
 
-            {/* ADICIONADO AQUI: RENDERIZA CONFIGURAÇÕES */}
             {activePage === 'configuracoes' && <Settings />}
 
-            {/* Outros módulos */}
-            {activePage !== 'dashboard' && activePage !== 'clientes' && activePage !== 'configuracoes' && (
+            {activePage !== 'dashboard' && activePage !== 'clientes' && activePage !== 'configuracoes' && activePage !== 'incompletos' && (
                 <div className="bg-white p-12 rounded-lg shadow-sm border border-gray-200 text-center h-full overflow-auto">
                     <h2 className="text-lg font-semibold mb-2 text-gray-400">Módulo em Desenvolvimento</h2>
                     <p className="text-gray-500">A página <strong>{activePage}</strong> será implementada na próxima etapa.</p>
