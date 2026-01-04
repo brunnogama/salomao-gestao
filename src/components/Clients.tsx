@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
-import { Plus, Filter, LayoutList, LayoutGrid, Pencil, Trash2, X, AlertTriangle, ChevronDown, FileSpreadsheet } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Plus, Filter, LayoutList, LayoutGrid, Pencil, Trash2, X, AlertTriangle, ChevronDown, FileSpreadsheet, RefreshCw } from 'lucide-react'
 import { NewClientModal, ClientData } from './NewClientModal'
 import { utils, writeFile } from 'xlsx'
+import { supabase } from '../lib/supabase'
 
 interface Client extends ClientData {
   id: number;
@@ -10,6 +11,7 @@ interface Client extends ClientData {
 export function Clients() {
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
   
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null)
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
@@ -17,68 +19,51 @@ export function Clients() {
   const [socioFilter, setSocioFilter] = useState('')
   const [brindeFilter, setBrindeFilter] = useState('')
 
-  const [clients, setClients] = useState<Client[]>([
-    { 
-      id: 1, 
-      nome: 'Carlos Eduardo', 
-      empresa: 'Tech Solutions', 
-      cargo: 'CEO', 
-      tipoBrinde: 'Brinde VIP', 
-      quantidade: 1, 
-      socio: 'Marcio Gama', 
-      cidade: 'São Paulo/SP', 
-      cep: '01000-000', 
-      endereco: 'Av Paulista', 
-      numero: '1000', 
-      complemento: '', 
-      bairro: 'Bela Vista', 
-      estado: 'SP', 
-      email: 'carlos@tech.com', 
-      observacoes: '', 
-      outroBrinde: '' 
-    },
-    { 
-      id: 2, 
-      nome: 'Ana Paula', 
-      empresa: 'Retail Corp', 
-      cargo: 'Diretora', 
-      tipoBrinde: 'Brinde Médio', 
-      quantidade: 2, 
-      socio: 'Rodrigo Salomão', 
-      cidade: 'Rio de Janeiro/RJ', 
-      cep: '20000-000', 
-      endereco: 'Av Rio Branco', 
-      numero: '500', 
-      complemento: '', 
-      bairro: 'Centro', 
-      estado: 'RJ', 
-      email: 'ana@retail.com', 
-      observacoes: '', 
-      outroBrinde: '' 
-    },
-    { 
-      id: 3, 
-      nome: 'Roberto Alves', 
-      empresa: 'Logística SA', 
-      cargo: 'Gerente', 
-      tipoBrinde: 'Brinde Médio', 
-      quantidade: 1, 
-      socio: 'Marcio Gama', 
-      cidade: 'Curitiba/PR', 
-      cep: '80000-000', 
-      endereco: 'Rua XV', 
-      numero: '200', 
-      complemento: '', 
-      bairro: 'Centro', 
-      estado: 'PR', 
-      email: 'roberto@log.com', 
-      observacoes: '', 
-      outroBrinde: '' 
-    },
-  ])
+  const [clients, setClients] = useState<Client[]>([])
 
-  const uniqueSocios = Array.from(new Set(clients.map(c => c.socio)))
-  const uniqueBrindes = Array.from(new Set(clients.map(c => c.tipoBrinde)))
+  // 1. CARREGAR DADOS DO SUPABASE
+  const fetchClients = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Erro ao buscar clientes:', error)
+    } else {
+      // Mapear do formato do Banco (snake_case) para o App (camelCase)
+      const formattedClients: Client[] = data.map((item: any) => ({
+        id: item.id,
+        nome: item.nome,
+        empresa: item.empresa,
+        cargo: item.cargo,
+        tipoBrinde: item.tipo_brinde,
+        outroBrinde: item.outro_brinde,
+        quantidade: item.quantidade,
+        cep: item.cep,
+        endereco: item.endereco,
+        numero: item.numero,
+        complemento: item.complemento,
+        bairro: item.bairro,
+        cidade: item.cidade,
+        estado: item.estado,
+        email: item.email,
+        socio: item.socio,
+        observacoes: item.observacoes
+      }))
+      setClients(formattedClients)
+    }
+    setLoading(false)
+  }
+
+  // Carrega ao abrir a tela
+  useEffect(() => {
+    fetchClients()
+  }, [])
+
+  const uniqueSocios = Array.from(new Set(clients.map(c => c.socio).filter(Boolean)))
+  const uniqueBrindes = Array.from(new Set(clients.map(c => c.tipoBrinde).filter(Boolean)))
 
   const filteredClients = useMemo(() => {
     return clients.filter(client => {
@@ -88,18 +73,65 @@ export function Clients() {
     })
   }, [clients, socioFilter, brindeFilter])
 
-  // LÓGICA DE SALVAMENTO (NOVO OU EDIÇÃO)
-  const handleSaveClient = (clientData: ClientData) => {
-    if (clientToEdit) {
-      // Edição: Atualiza o cliente existente
-      setClients(clients.map(c => c.id === clientToEdit.id ? { ...clientData, id: clientToEdit.id } : c))
-    } else {
-      // Novo: Gera um ID novo e adiciona
-      const newId = clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1
-      setClients([...clients, { ...clientData, id: newId }])
+  // 2. SALVAR NO SUPABASE (NOVO OU EDIÇÃO)
+  const handleSaveClient = async (clientData: ClientData) => {
+    // Prepara o objeto para o formato do banco
+    const dbData = {
+      nome: clientData.nome,
+      empresa: clientData.empresa,
+      cargo: clientData.cargo,
+      tipo_brinde: clientData.tipoBrinde,
+      outro_brinde: clientData.outroBrinde,
+      quantidade: clientData.quantidade,
+      cep: clientData.cep,
+      endereco: clientData.endereco,
+      numero: clientData.numero,
+      complemento: clientData.complemento,
+      bairro: clientData.bairro,
+      cidade: clientData.cidade,
+      estado: clientData.estado,
+      email: clientData.email,
+      socio: clientData.socio,
+      observacoes: clientData.observacoes
     }
+
+    if (clientToEdit) {
+      // ATUALIZAR
+      const { error } = await supabase
+        .from('clientes')
+        .update(dbData)
+        .eq('id', clientToEdit.id)
+      
+      if (error) console.error('Erro ao atualizar:', error)
+    } else {
+      // CRIAR NOVO
+      const { error } = await supabase
+        .from('clientes')
+        .insert([dbData])
+
+      if (error) console.error('Erro ao criar:', error)
+    }
+
+    await fetchClients() // Recarrega a lista
     setIsModalOpen(false)
     setClientToEdit(null)
+  }
+
+  // 3. EXCLUIR NO SUPABASE
+  const confirmDelete = async () => {
+    if (clientToDelete) {
+      const { error } = await supabase
+        .from('clientes')
+        .delete()
+        .eq('id', clientToDelete.id)
+
+      if (error) {
+        console.error('Erro ao excluir:', error)
+      } else {
+        await fetchClients()
+      }
+      setClientToDelete(null)
+    }
   }
 
   const handleEdit = (client: Client) => {
@@ -109,13 +141,6 @@ export function Clients() {
 
   const handleDeleteClick = (client: Client) => {
     setClientToDelete(client)
-  }
-
-  const confirmDelete = () => {
-    if (clientToDelete) {
-      setClients(clients.filter(c => c.id !== clientToDelete.id))
-      setClientToDelete(null)
-    }
   }
 
   const closeModal = () => {
@@ -148,19 +173,9 @@ export function Clients() {
     const ws = utils.json_to_sheet(dataToExport)
 
     const wscols = [
-      { wch: 25 }, 
-      { wch: 20 }, 
-      { wch: 15 }, 
-      { wch: 20 }, 
-      { wch: 15 }, 
-      { wch: 10 }, 
-      { wch: 20 }, 
-      { wch: 25 }, 
-      { wch: 20 }, 
-      { wch: 5 },  
-      { wch: 40 }, 
-      { wch: 10 }, 
-      { wch: 30 }, 
+      { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, 
+      { wch: 15 }, { wch: 10 }, { wch: 20 }, { wch: 25 }, 
+      { wch: 20 }, { wch: 5 }, { wch: 40 }, { wch: 10 }, { wch: 30 }
     ]
     ws['!cols'] = wscols
 
@@ -174,7 +189,6 @@ export function Clients() {
   return (
     <div className="h-full flex flex-col relative">
       
-      {/* Passamos o onSave para o Modal */}
       <NewClientModal 
         isOpen={isModalOpen} 
         onClose={closeModal} 
@@ -216,10 +230,10 @@ export function Clients() {
         </div>
       )}
 
+      {/* TOOLBAR */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
         
         <div className="flex items-center gap-3 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 px-1">
-           
            <div className="relative group">
              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                <Filter className="h-4 w-4" />
@@ -289,6 +303,14 @@ export function Clients() {
 
         <div className="flex items-center gap-3 w-full xl:w-auto">
             <button 
+              onClick={fetchClients}
+              className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-all shadow-sm"
+              title="Atualizar Lista"
+            >
+              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+
+            <button 
               onClick={handleExportExcel}
               className="flex-1 xl:flex-none flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-md hover:shadow-lg whitespace-nowrap transform hover:-translate-y-0.5"
             >
@@ -307,12 +329,20 @@ export function Clients() {
       </div>
 
       <div className="flex-1 overflow-auto pb-4">
-        
-        {filteredClients.length === 0 ? (
+        {/* LOADING STATE */}
+        {loading && clients.length === 0 && (
+          <div className="flex h-full items-center justify-center">
+             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#112240]"></div>
+          </div>
+        )}
+
+        {!loading && filteredClients.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-white rounded-lg border border-dashed border-gray-300">
             <Filter className="h-12 w-12 text-gray-300 mb-2" />
-            <p>Nenhum cliente encontrado com os filtros selecionados.</p>
-            <button onClick={clearFilters} className="text-[#112240] font-bold hover:underline mt-2 text-sm">Limpar filtros</button>
+            <p>Nenhum cliente encontrado.</p>
+            {(socioFilter || brindeFilter) && (
+              <button onClick={clearFilters} className="text-[#112240] font-bold hover:underline mt-2 text-sm">Limpar filtros</button>
+            )}
           </div>
         ) : (
           <>
@@ -350,9 +380,9 @@ export function Clients() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             <div className="flex items-center gap-2">
                                 <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600">
-                                    {client.socio.charAt(0)}
+                                    {(client.socio || 'U').charAt(0)}
                                 </div>
-                                {client.socio}
+                                {client.socio || '-'}
                             </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.cidade}</td>
