@@ -189,6 +189,7 @@ export function Clients() {
   return (
     <div className="h-full flex flex-col relative">
       
+      {/* AQUI ESTAVA O ERRO: Agora estamos passando o onSave */}
       <NewClientModal 
         isOpen={isModalOpen} 
         onClose={closeModal} 
