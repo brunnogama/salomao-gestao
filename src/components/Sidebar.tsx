@@ -14,24 +14,23 @@ import { supabase } from '../lib/supabase'
 interface SidebarProps {
   activePage: string;
   onNavigate: (page: string) => void;
-  userName: string; // Recebe o nome do usuário logado
+  userName: string;
 }
 
 export function Sidebar({ activePage, onNavigate, userName }: SidebarProps) {
   
   const mainItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'contratos', label: 'Contratos', icon: FileWarning }, // Ajustado nome conforme print
-    { id: 'propostas', label: 'Propostas', icon: FileWarning }, // Ícone provisório
-    { id: 'volumetria', label: 'Volumetria', icon: LayoutDashboard }, // Ícone provisório
-    { id: 'compliance', label: 'Compliance', icon: FileWarning }, // Ícone provisório
+    { id: 'contratos', label: 'Contratos', icon: FileWarning },
+    { id: 'propostas', label: 'Propostas', icon: FileWarning },
+    { id: 'volumetria', label: 'Volumetria', icon: LayoutDashboard },
+    { id: 'compliance', label: 'Compliance', icon: FileWarning },
     { id: 'clientes', label: 'Clientes', icon: Users },
     { id: 'kanban', label: 'Kanban', icon: KanbanSquare },
-    { id: 'ged', label: 'GED', icon: FileWarning }, // Ícone provisório
+    { id: 'ged', label: 'GED', icon: FileWarning },
   ]
 
   const bottomItems = [
-    { id: 'manual', label: 'Manual do Sistema', icon: BookOpen },
     { id: 'historico', label: 'Histórico', icon: History },
     { id: 'configuracoes', label: 'Configurações', icon: Settings },
   ]
@@ -39,9 +38,10 @@ export function Sidebar({ activePage, onNavigate, userName }: SidebarProps) {
   return (
     <div className="h-screen w-64 bg-[#112240] text-gray-300 flex flex-col font-sans border-r border-gray-800 flex-shrink-0">
       
-      {/* 1. Logo */}
-      <div className="h-20 flex items-center px-6 bg-[#112240]">
-        <img src="/logo-branca.png" alt="Salomão" className="h-8 object-contain" />
+      {/* 1. Logo MAIOR */}
+      <div className="h-24 flex items-center px-6 bg-[#112240] flex-shrink-0">
+        {/* AUMENTEI AQUI: h-12 */}
+        <img src="/logo-branca.png" alt="Salomão" className="h-12 w-auto object-contain" />
       </div>
 
       {/* 2. Menu Principal (Topo) */}
@@ -62,8 +62,8 @@ export function Sidebar({ activePage, onNavigate, userName }: SidebarProps) {
         ))}
       </div>
 
-      {/* 3. Menu Inferior (Manual, Histórico...) */}
-      <div className="pt-4 pb-2 px-3 bg-[#112240]">
+      {/* 3. Menu Inferior (Histórico...) */}
+      <div className="pt-4 pb-2 px-3 bg-[#112240] flex-shrink-0">
         <div className="border-t border-gray-700/50 mb-4 mx-2"></div>
         
         {bottomItems.map((item) => (
@@ -80,23 +80,27 @@ export function Sidebar({ activePage, onNavigate, userName }: SidebarProps) {
         ))}
       </div>
 
-      {/* 4. Rodapé do Usuário */}
-      <div className="p-4 bg-[#0d1b33]">
-        <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-gray-600 flex items-center justify-center border-2 border-[#112240]">
-                <UserCircle className="h-6 w-6 text-gray-300" />
-            </div>
-            <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-sm font-bold text-white truncate capitalize">
+      {/* 4. Rodapé do Usuário (LAYOUT NOVO IGUAL AO PRINT) */}
+      <div className="p-4 bg-[#0d1b33] flex-shrink-0">
+        {/* Container interno com fundo um pouco mais claro e borda, igual ao print */}
+        <div className="flex items-center justify-between rounded-lg bg-[#112240] p-3 border border-gray-800/50">
+            
+            {/* Lado Esquerdo: Ícone e Nome */}
+            <div className="flex items-center gap-3">
+                <UserCircle className="h-8 w-8 text-gray-400" />
+                <span className="text-sm font-medium text-white truncate capitalize leading-none">
                   {userName}
                 </span>
-                <button 
-                  onClick={() => supabase.auth.signOut()}
-                  className="text-[11px] text-gray-400 hover:text-red-400 flex items-center gap-1 mt-0.5 transition-colors w-fit"
-                >
-                    <LogOut className="h-3 w-3" /> Sair
-                </button>
             </div>
+
+            {/* Lado Direito: Botão de Sair (Ícone Vermelho/Laranja destacado) */}
+            <button 
+              onClick={() => supabase.auth.signOut()}
+              className="text-red-500 hover:text-red-400 transition-colors p-1 hover:bg-white/5 rounded"
+              title="Sair do Sistema"
+            >
+                <LogOut className="h-5 w-5" />
+            </button>
         </div>
       </div>
     </div>
