@@ -24,8 +24,11 @@ export function IncompleteClients() {
 
   const [incompleteClients, setIncompleteClients] = useState<Client[]>([])
 
+  // FUNÇÃO PARA IDENTIFICAR O QUE FALTA
   const getMissingFields = (client: Client) => {
     const missing: string[] = []
+    
+    // Campos Obrigatórios
     if (!client.nome) missing.push('Nome')
     if (!client.empresa) missing.push('Empresa')
     if (!client.tipoBrinde) missing.push('Tipo Brinde')
@@ -39,9 +42,11 @@ export function IncompleteClients() {
     if (!client.estado) missing.push('UF')
     if (!client.email) missing.push('Email')
     if (!client.socio) missing.push('Sócio')
+
     return missing
   }
 
+  // BUSCAR DADOS
   const fetchIncompleteClients = async () => {
     setLoading(true)
     const { data, error } = await supabase
@@ -52,6 +57,7 @@ export function IncompleteClients() {
     if (error) {
       console.error('Erro ao buscar:', error)
     } else {
+      // 1. Converter formato (snake_case -> camelCase)
       const allClients: Client[] = data.map((item: any) => ({
         id: item.id,
         nome: item.nome,
@@ -71,6 +77,8 @@ export function IncompleteClients() {
         socio: item.socio,
         observacoes: item.observacoes
       }))
+
+      // 2. Filtrar apenas os que têm campos faltando
       const incomplete = allClients.filter(c => getMissingFields(c).length > 0)
       setIncompleteClients(incomplete)
     }
@@ -96,9 +104,13 @@ export function IncompleteClients() {
       result.sort((a, b) => {
         let valA = (sortBy === 'nome' ? a.nome : a.socio) || ''
         let valB = (sortBy === 'nome' ? b.nome : b.socio) || ''
-        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA)
+        
+        return sortDirection === 'asc' 
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA)
       })
     }
+
     return result
   }, [incompleteClients, socioFilter, brindeFilter, sortBy, sortDirection])
 
@@ -111,6 +123,7 @@ export function IncompleteClients() {
     }
   }
 
+  // EDITAR / COMPLETAR (Passado para o Modal)
   const handleSaveClient = async (clientData: ClientData) => {
     const dbData = {
       nome: clientData.nome,
@@ -130,6 +143,7 @@ export function IncompleteClients() {
       socio: clientData.socio,
       observacoes: clientData.observacoes
     }
+
     try {
       if (clientToEdit) {
         const { error } = await supabase.from('clientes').update(dbData).eq('id', clientToEdit.id)
@@ -143,6 +157,7 @@ export function IncompleteClients() {
     }
   }
 
+  // EXCLUIR
   const confirmDelete = async () => {
     if (clientToDelete) {
       try {
@@ -156,6 +171,7 @@ export function IncompleteClients() {
     }
   }
 
+  // EXPORTAR XLSX
   const handleExportExcel = () => {
     const dataToExport = filteredClients.map(client => ({
       "Nome": client.nome,
@@ -164,7 +180,7 @@ export function IncompleteClients() {
       "Sócio": client.socio,
       "Email": client.email,
       "Cidade": client.cidade,
-      "PENDÊNCIAS": getMissingFields(client).join(', ') // Mantido no final do objeto para o Excel
+      "PENDÊNCIAS": getMissingFields(client).join(', ') // Coluna no final
     }))
 
     const ws = utils.json_to_sheet(dataToExport)
@@ -175,9 +191,21 @@ export function IncompleteClients() {
     writeFile(wb, `Incompletos_Salomao_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`)
   }
 
+  const handleEdit = (client: Client) => {
+    setClientToEdit(client)
+    setIsModalOpen(true)
+  }
+
   return (
     <div className="h-full flex flex-col relative">
-      <NewClientModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setClientToEdit(null); }} onSave={handleSaveClient} clientToEdit={clientToEdit} />
+      
+      {/* AQUI ESTAVA O ERRO ANTERIOR: Agora onSave está presente */}
+      <NewClientModal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setClientToEdit(null); }} 
+        onSave={handleSaveClient} 
+        clientToEdit={clientToEdit} 
+      />
 
       {clientToDelete && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -195,9 +223,10 @@ export function IncompleteClients() {
         </div>
       )}
 
+      {/* HEADER / FILTROS */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
         <div className="flex items-center gap-3 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 px-1">
-           {/* Filtros */}
+           {/* Filtro Sócio */}
            <div className="relative group">
              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Filter className="h-4 w-4" /></div>
              <select value={socioFilter} onChange={(e) => setSocioFilter(e.target.value)} className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#112240]/20 min-w-[160px]">
@@ -207,6 +236,7 @@ export function IncompleteClients() {
              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><ChevronDown className="h-4 w-4" /></div>
            </div>
 
+           {/* Filtro Brinde */}
            <div className="relative group">
              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Filter className="h-4 w-4" /></div>
              <select value={brindeFilter} onChange={(e) => setBrindeFilter(e.target.value)} className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#112240]/20 min-w-[160px]">
@@ -240,6 +270,7 @@ export function IncompleteClients() {
         </div>
       </div>
 
+      {/* LISTAGEM */}
       <div className="flex-1 overflow-auto pb-4">
         {!loading && filteredClients.length === 0 && (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-white rounded-lg border border-dashed border-gray-300">
@@ -257,8 +288,10 @@ export function IncompleteClients() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-red-700" onClick={() => toggleSort('nome')}>Cliente {sortBy === 'nome' && (sortDirection === 'asc' ? '↑' : '↓')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-red-700" onClick={() => toggleSort('socio')}>Sócio {sortBy === 'socio' && (sortDirection === 'asc' ? '↑' : '↓')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                  {/* PENDÊNCIAS MOVIDO PARA O FINAL */}
+                  
+                  {/* COLUNA DE PENDÊNCIAS AGORA NO FINAL */}
                   <th className="px-6 py-4 text-left text-xs font-bold text-red-600 uppercase tracking-wider">Pendências (Obrigatórias)</th>
+                  
                   <th className="relative px-6 py-4"><span className="sr-only">Ações</span></th>
                 </tr>
               </thead>
@@ -275,7 +308,8 @@ export function IncompleteClients() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{client.socio || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.email || '-'}</td>
-                      {/* CÉLULA DE PENDÊNCIAS AQUI NO FINAL */}
+                      
+                      {/* CÉLULA DE PENDÊNCIAS */}
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
                           {missing.map(field => (
@@ -285,6 +319,7 @@ export function IncompleteClients() {
                           ))}
                         </div>
                       </td>
+
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => handleEdit(client)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="Completar Cadastro"><Pencil className="h-4 w-4" /></button>
