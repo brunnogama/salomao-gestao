@@ -3,7 +3,7 @@ import { User, Lock, ArrowRight } from 'lucide-react'
 import { supabase } from './lib/supabase'
 
 export default function Login() {
-  const [username, setUsername] = useState('') // Mudamos de 'email' para 'username'
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -13,7 +13,6 @@ export default function Login() {
     setLoading(true)
     setError(null)
 
-    // AQUI ESTÁ A MÁGICA: Juntamos o usuário com o domínio fixo
     const fullEmail = `${username}@salomaoadv.com.br`
 
     const { error } = await supabase.auth.signInWithPassword({
@@ -23,8 +22,7 @@ export default function Login() {
 
     if (error) {
       setError('Erro ao acessar: Verifique suas credenciais.')
-    } 
-    // Se der certo, o App.tsx detecta a sessão automaticamente
+    }
     setLoading(false)
   }
 
@@ -33,12 +31,13 @@ export default function Login() {
       {/* LADO ESQUERDO - Formulário (Fundo Branco) */}
       <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-12 sm:px-24 relative">
         
-        {/* LOGO CENTRALIZADO */}
-        <div className="mb-16 text-center w-full">
+        {/* LOGO CENTRALIZADO E MAIOR */}
+        <div className="mb-8 text-center w-full">
           <img 
             src="/logo-salomao.png" 
             alt="Salomão Advogados" 
-            className="h-16 object-contain mb-2 mx-auto" 
+            // AUMENTEI AQUI: h-28 para mobile, h-32 para desktop
+            className="h-28 md:h-32 object-contain mx-auto" 
           />
         </div>
 
@@ -52,7 +51,6 @@ export default function Login() {
               </label>
               
               <div className="flex items-stretch shadow-sm">
-                {/* Campo de Digitação (Lado Esquerdo) */}
                 <div className="relative flex-grow focus-within:z-10">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <User className="h-5 w-5 text-gray-400" />
@@ -66,8 +64,6 @@ export default function Login() {
                     required
                   />
                 </div>
-
-                {/* Bloco Fixo (Lado Direito) */}
                 <div className="flex items-center px-4 bg-gray-200 border border-l-0 border-gray-200 rounded-r-lg text-gray-500 text-sm font-medium select-none">
                   @salomaoadv.com.br
                 </div>
@@ -113,39 +109,33 @@ export default function Login() {
 
         <div className="absolute bottom-8 left-0 w-full text-center">
            <p className="text-[10px] text-gray-400 tracking-widest uppercase">
-             © 2026 Salomão Advogados • v1.0.0
+             © 2026 Salomão Advogados • v1.2.0
            </p>
         </div>
       </div>
 
-      {/* LADO DIREITO - Banner (Azul Escuro) - Mantido Igual */}
+      {/* LADO DIREITO - Banner */}
       <div className="hidden md:flex md:w-1/2 bg-[#112240] flex-col justify-center px-24 relative overflow-hidden">
-        
         <div className="absolute top-1/2 left-24 -translate-y-[180%]">
              <div className="h-12 w-12 rounded-full border border-gray-600 flex items-center justify-center">
                 <ArrowRight className="text-salomao-gold h-5 w-5" />
              </div>
         </div>
-
         <div className="relative z-10">
           <h2 className="text-4xl font-bold text-white mb-2 leading-tight">
-            Portal de Gestão<br/>
+            Controladoria Jurídica<br/>
             Estratégica
           </h2>
           <div className="h-1 w-16 bg-yellow-600 mb-6 mt-4"></div>
-
           <p className="text-gray-300 text-lg font-light leading-relaxed max-w-md">
-            Centralização inteligente de CRM, Recursos Humanos e Contatos. 
-            Tecnologia impulsionando a eficiência organizacional do <strong className="text-white font-semibold">Salomão Advogados</strong>.
+            Gestão inteligente de processos e contratos. A tecnologia garantindo a segurança e eficiência do <strong className="text-white font-semibold">Salomão Advogados</strong>.
           </p>
         </div>
-
         <div className="absolute bottom-8 left-24">
            <p className="text-[10px] text-gray-500 tracking-widest">
-             © 2026 Salomão Advogados • Portal Gestão
+             © 2026 Salomão Advogados • v2.5.0
            </p>
         </div>
-        
         <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/5 to-transparent pointer-events-none"></div>
       </div>
     </div>
