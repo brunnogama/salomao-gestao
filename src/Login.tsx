@@ -28,15 +28,13 @@ export default function Login() {
 
   return (
     <div className="flex h-screen w-full font-sans">
-      {/* LADO ESQUERDO - Formulário (Fundo Branco) */}
+      {/* LADO ESQUERDO - Formulário (Fundo Branco) - SEM ALTERAÇÕES */}
       <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-12 sm:px-24 relative">
         
-        {/* LOGO CENTRALIZADO - Tamanho Ajustado (Intermediário) */}
         <div className="mb-10 text-center w-full">
           <img 
             src="/logo-salomao.png" 
             alt="Salomão Advogados" 
-            // AJUSTE: h-20 (mobile) e h-24 (desktop) - Equilibrado
             className="h-20 md:h-24 object-contain mx-auto" 
           />
         </div>
@@ -44,7 +42,6 @@ export default function Login() {
         <form onSubmit={handleLogin} className="w-full max-w-md mx-auto">
           <div className="space-y-6">
             
-            {/* Input Usuário com Domínio Fixo */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
                 Usuário Corporativo
@@ -70,7 +67,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Input Senha */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
                 Senha
@@ -109,26 +105,31 @@ export default function Login() {
 
         <div className="absolute bottom-8 left-0 w-full text-center">
            <p className="text-[10px] text-gray-400 tracking-widest uppercase">
-             © 2026 Salomão Advogados • v1.0.0
+             © 2026 Salomão Advogados • v1.2.0
            </p>
         </div>
       </div>
 
-      {/* LADO DIREITO - Texto VOLTOU ao original (Gestão) */}
+      {/* LADO DIREITO - Banner (AJUSTADO CONFORME SOLICITAÇÃO) */}
       <div className="hidden md:flex md:w-1/2 bg-[#112240] flex-col justify-center px-24 relative overflow-hidden">
         
-        <div className="absolute top-1/2 left-24 -translate-y-[180%]">
-             <div className="h-12 w-12 rounded-full border border-gray-600 flex items-center justify-center">
-                <ArrowRight className="text-salomao-gold h-5 w-5" />
-             </div>
-        </div>
+        {/* Overlay de Gradiente */}
+        <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/5 to-transparent pointer-events-none"></div>
 
-        <div className="relative z-10">
-          <h2 className="text-4xl font-bold text-white mb-2 leading-tight">
+        {/* Conteúdo Centralizado Verticalmente */}
+        <div className="relative z-10 flex flex-col items-start">
+          
+          {/* Ícone da Seta - Agora ACIMA do texto e com fundo escuro */}
+          <div className="h-12 w-12 rounded-full bg-[#1a2c4e] flex items-center justify-center mb-8">
+            <ArrowRight className="text-salomao-gold h-6 w-6" />
+          </div>
+
+          <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
             Portal de Gestão<br/>
             Estratégica
           </h2>
-          <div className="h-1 w-16 bg-yellow-600 mb-6 mt-4"></div>
+          
+          <div className="h-1 w-16 bg-yellow-600 mb-6"></div>
 
           <p className="text-gray-300 text-lg font-light leading-relaxed max-w-md">
             Centralização inteligente de CRM, Recursos Humanos e Contatos. 
@@ -136,13 +137,8 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="absolute bottom-8 left-24">
-           <p className="text-[10px] text-gray-500 tracking-widest">
-             © 2026 Salomão Advogados • Portal Gestão
-           </p>
-        </div>
+        {/* RODAPÉ DO LADO DIREITO FOI REMOVIDO */}
         
-        <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/5 to-transparent pointer-events-none"></div>
       </div>
     </div>
   )
