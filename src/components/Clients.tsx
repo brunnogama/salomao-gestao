@@ -31,8 +31,8 @@ export function Clients() {
 
     if (error) {
       console.error('Erro ao buscar clientes:', error)
+      // Não alertamos aqui para não spammar o usuário, mas logamos no console
     } else {
-      // Converte snake_case (banco) para camelCase (app)
       const formattedClients: Client[] = data.map((item: any) => ({
         id: item.id,
         nome: item.nome,
@@ -57,7 +57,6 @@ export function Clients() {
     setLoading(false)
   }
 
-  // Carrega lista ao abrir a tela
   useEffect(() => {
     fetchClients()
   }, [])
@@ -73,9 +72,8 @@ export function Clients() {
     })
   }, [clients, socioFilter, brindeFilter])
 
-  // 2. SALVAR DADOS (Novo ou Edição)
+  // 2. SALVAR DADOS
   const handleSaveClient = async (clientData: ClientData) => {
-    // Prepara objeto para o banco (snake_case)
     const dbData = {
       nome: clientData.nome,
       empresa: clientData.empresa,
@@ -95,42 +93,52 @@ export function Clients() {
       observacoes: clientData.observacoes
     }
 
-    if (clientToEdit) {
-      // UPDATE
-      const { error } = await supabase
-        .from('clientes')
-        .update(dbData)
-        .eq('id', clientToEdit.id)
-      
-      if (error) console.error('Erro ao atualizar:', error)
-    } else {
-      // INSERT
-      const { error } = await supabase
-        .from('clientes')
-        .insert([dbData])
+    try {
+      if (clientToEdit) {
+        // UPDATE
+        const { error } = await supabase
+          .from('clientes')
+          .update(dbData)
+          .eq('id', clientToEdit.id)
+        
+        if (error) throw error
+      } else {
+        // INSERT
+        const { error } = await supabase
+          .from('clientes')
+          .insert([dbData])
 
-      if (error) console.error('Erro ao criar:', error)
+        if (error) throw error
+      }
+
+      // Se deu tudo certo:
+      await fetchClients()
+      setIsModalOpen(false)
+      setClientToEdit(null)
+
+    } catch (error: any) {
+      console.error('Erro ao salvar:', error)
+      alert(`Erro ao salvar: ${error.message || error.toString()}\n\nVerifique se rodou o SQL de permissões no Supabase!`)
     }
-
-    await fetchClients() // Recarrega a lista
-    setIsModalOpen(false)
-    setClientToEdit(null)
   }
 
   // 3. EXCLUIR DADOS
   const confirmDelete = async () => {
     if (clientToDelete) {
-      const { error } = await supabase
-        .from('clientes')
-        .delete()
-        .eq('id', clientToDelete.id)
+      try {
+        const { error } = await supabase
+          .from('clientes')
+          .delete()
+          .eq('id', clientToDelete.id)
 
-      if (error) {
-        console.error('Erro ao excluir:', error)
-      } else {
+        if (error) throw error
+
         await fetchClients()
+        setClientToDelete(null)
+      } catch (error: any) {
+        console.error('Erro ao excluir:', error)
+        alert(`Erro ao excluir: ${error.message}`)
       }
-      setClientToDelete(null)
     }
   }
 
@@ -189,7 +197,6 @@ export function Clients() {
   return (
     <div className="h-full flex flex-col relative">
       
-      {/* MODAL CONECTADO CORRETAMENTE */}
       <NewClientModal 
         isOpen={isModalOpen} 
         onClose={closeModal} 
@@ -231,7 +238,6 @@ export function Clients() {
         </div>
       )}
 
-      {/* TOOLBAR */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
         
         <div className="flex items-center gap-3 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 px-1">
@@ -330,7 +336,6 @@ export function Clients() {
       </div>
 
       <div className="flex-1 overflow-auto pb-4">
-        {/* LOADING STATE */}
         {loading && clients.length === 0 && (
           <div className="flex h-full items-center justify-center">
              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#112240]"></div>
