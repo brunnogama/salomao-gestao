@@ -4,7 +4,8 @@ import Login from './Login'
 import { Sidebar } from './components/Sidebar'
 import { Clients } from './components/Clients'
 import { Settings } from './components/Settings'
-import { IncompleteClients } from './components/IncompleteClients' // <--- IMPORTADO
+import { IncompleteClients } from './components/IncompleteClients'
+import { Kanban } from './components/Kanban' // <-- IMPORTAÇÃO DO KANBAN
 
 export default function App() {
   const [session, setSession] = useState<any>(null)
@@ -15,7 +16,7 @@ export default function App() {
     dashboard: 'Visão geral de performance e indicadores chave.',
     clientes: 'Gerencie a base de prospects e clientes ativos.',
     incompletos: 'Atenção: Cadastros que necessitam de preenchimento.',
-    kanban: 'Pipeline visual de negociações e status.',
+    kanban: 'Gerencie suas tarefas de forma visual.',
     manual: 'Documentação e procedimentos operacionais padrão.',
     historico: 'Log de atividades e auditoria do sistema.',
     configuracoes: 'Preferências do sistema e gestão de acessos.'
@@ -51,13 +52,10 @@ export default function App() {
     )
   }
 
-  if (!session) {
-    return <Login />
-  }
+  if (!session) return <Login />
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      
       <Sidebar 
         activePage={activePage} 
         onNavigate={setActivePage} 
@@ -65,7 +63,6 @@ export default function App() {
       />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        
         <header className="bg-white border-b border-gray-200 h-20 flex items-center px-8 justify-between flex-shrink-0 z-10">
             <div className="flex flex-col justify-center">
                 <h1 className="text-2xl font-bold text-[#112240] capitalize leading-tight">
@@ -75,11 +72,9 @@ export default function App() {
                     {moduleDescriptions[activePage] || 'Gestão Estratégica'}
                 </span>
             </div>
-            <div></div>
         </header>
 
         <div className="p-8 flex-1 overflow-hidden h-full">
-            
             {activePage === 'dashboard' && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 h-full overflow-auto">
                     <h2 className="text-lg font-semibold mb-2">Resumo da Semana</h2>
@@ -88,13 +83,13 @@ export default function App() {
             )}
 
             {activePage === 'clientes' && <Clients />}
-            
-            {/* NOVO MÓDULO RENDERIZADO */}
             {activePage === 'incompletos' && <IncompleteClients />}
-
             {activePage === 'configuracoes' && <Settings />}
+            
+            {/* RENDERIZAÇÃO DO KANBAN */}
+            {activePage === 'kanban' && <Kanban />}
 
-            {activePage !== 'dashboard' && activePage !== 'clientes' && activePage !== 'configuracoes' && activePage !== 'incompletos' && (
+            {activePage !== 'dashboard' && activePage !== 'clientes' && activePage !== 'configuracoes' && activePage !== 'incompletos' && activePage !== 'kanban' && (
                 <div className="bg-white p-12 rounded-lg shadow-sm border border-gray-200 text-center h-full overflow-auto">
                     <h2 className="text-lg font-semibold mb-2 text-gray-400">Módulo em Desenvolvimento</h2>
                     <p className="text-gray-500">A página <strong>{activePage}</strong> será implementada na próxima etapa.</p>
