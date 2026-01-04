@@ -6,7 +6,7 @@ import { Sidebar } from './components/Sidebar'
 export default function App() {
   const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activePage, setActivePage] = useState('dashboard') // Controla qual página aparece
+  const [activePage, setActivePage] = useState('dashboard')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -21,6 +21,20 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Função para formatar o nome do usuário baseado no email
+  const getUserDisplayName = () => {
+    if (!session?.user?.email) return 'Usuário'
+    
+    // Pega a parte antes do @ (ex: joao.silva)
+    const namePart = session.user.email.split('@')[0]
+    
+    // Remove pontos e capitaliza (ex: Joao Silva)
+    return namePart
+      .split('.')
+      .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+  }
+
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[#112240]">
@@ -29,51 +43,47 @@ export default function App() {
     )
   }
 
-  // Se NÃO estiver logado, mostra Login
   if (!session) {
     return <Login />
   }
 
-  // Se ESTIVER logado, mostra o Layout do Sistema
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       
-      {/* Sidebar Fixa */}
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
+      {/* Passamos o nome formatado para a Sidebar */}
+      <Sidebar 
+        activePage={activePage} 
+        onNavigate={setActivePage} 
+        userName={getUserDisplayName()}
+      />
 
       {/* Área Principal de Conteúdo */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto flex flex-col">
         
-        {/* Header Superior (Título da Página) */}
-        <header className="bg-white shadow-sm h-16 flex items-center px-8 justify-between">
-            <h1 className="text-xl font-bold text-[#112240] capitalize">
+        {/* Header Superior */}
+        <header className="bg-white border-b border-gray-200 h-16 flex items-center px-8 justify-between flex-shrink-0">
+            <h1 className="text-xl font-bold text-[#112240] capitalize flex items-center gap-2">
                 {activePage}
             </h1>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 font-medium bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
                 Salomão Advogados
             </div>
         </header>
 
         {/* Conteúdo Variável */}
-        <div className="p-8">
+        <div className="p-8 flex-1">
             {activePage === 'dashboard' && (
-                <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                     <h2 className="text-lg font-semibold mb-2">Resumo da Semana</h2>
-                    <p className="text-gray-600">O conteúdo dos gráficos entrará aqui.</p>
+                    <p className="text-gray-600">Seus gráficos de BI entrarão aqui em breve.</p>
                 </div>
             )}
 
-            {activePage === 'clientes' && (
-                <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                    <h2 className="text-lg font-semibold mb-2">Gestão de Clientes</h2>
-                    <p className="text-gray-600">Lista de clientes entrará aqui.</p>
-                </div>
-            )}
-            
-            {activePage === 'kanban' && (
-                <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                    <h2 className="text-lg font-semibold mb-2">Kanban de Processos</h2>
-                    <p className="text-gray-600">Quadro visual entrará aqui.</p>
+            {/* Placeholder para as outras páginas */}
+            {activePage !== 'dashboard' && (
+                <div className="bg-white p-12 rounded-lg shadow-sm border border-gray-200 text-center">
+                    <h2 className="text-lg font-semibold mb-2 text-gray-400">Módulo em Desenvolvimento</h2>
+                    <p className="text-gray-500">A página <strong>{activePage}</strong> será implementada na próxima etapa.</p>
                 </div>
             )}
         </div>
