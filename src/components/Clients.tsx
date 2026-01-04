@@ -17,7 +17,7 @@ export function Clients() {
   const [socioFilter, setSocioFilter] = useState('')
   const [brindeFilter, setBrindeFilter] = useState('')
 
-  // CORREÇÃO AQUI: Removi a propriedade 'brinde' antiga. Agora só existe 'tipoBrinde'.
+  // DADOS CORRIGIDOS: Note que NÃO EXISTE MAIS a propriedade "brinde", apenas "tipoBrinde"
   const [clients, setClients] = useState<Client[]>([
     { 
       id: 1, 
@@ -79,7 +79,6 @@ export function Clients() {
   ])
 
   const uniqueSocios = Array.from(new Set(clients.map(c => c.socio)))
-  // Esta variável agora é usada abaixo no <select>, resolvendo o erro de "variável não usada"
   const uniqueBrindes = Array.from(new Set(clients.map(c => c.tipoBrinde)))
 
   const filteredClients = useMemo(() => {
@@ -238,6 +237,7 @@ export function Clients() {
                 className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#112240]/20 focus:border-[#112240] cursor-pointer shadow-sm transition-all min-w-[160px]"
              >
                 <option value="">Brinde: Todos</option>
+                {/* Aqui estamos usando a variável uniqueBrindes corretamente */}
                 {uniqueBrindes.map(brinde => (
                   <option key={brinde} value={brinde}>{brinde}</option>
                 ))}
