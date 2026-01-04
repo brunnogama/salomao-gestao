@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { User, Lock, ArrowRight, ChevronRight } from 'lucide-react'
+import { User, Lock, ArrowRight } from 'lucide-react'
 import { supabase } from './lib/supabase'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('') // Mudamos de 'email' para 'username'
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -13,17 +13,18 @@ export default function Login() {
     setLoading(true)
     setError(null)
 
+    // AQUI ESTÁ A MÁGICA: Juntamos o usuário com o domínio fixo
+    const fullEmail = `${username}@salomaoadv.com.br`
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: fullEmail,
       password,
     })
 
     if (error) {
       setError('Erro ao acessar: Verifique suas credenciais.')
-    } else {
-      // O App.tsx vai detectar o login automaticamente e mudar a tela
-      // não precisamos redirecionar manualmente aqui
-    }
+    } 
+    // Se der certo, o App.tsx detecta a sessão automaticamente
     setLoading(false)
   }
 
@@ -32,35 +33,44 @@ export default function Login() {
       {/* LADO ESQUERDO - Formulário (Fundo Branco) */}
       <div className="w-full md:w-1/2 bg-white flex flex-col justify-center px-12 sm:px-24 relative">
         
-        <div className="mb-16">
+        {/* LOGO CENTRALIZADO */}
+        <div className="mb-16 text-center w-full">
           <img 
             src="/logo-salomao.png" 
             alt="Salomão Advogados" 
-            className="h-16 object-contain mb-2" 
+            className="h-16 object-contain mb-2 mx-auto" 
           />
-          {/* Espaço para subtítulo se precisar */}
         </div>
 
-        <form onSubmit={handleLogin} className="w-full max-w-md">
+        <form onSubmit={handleLogin} className="w-full max-w-md mx-auto">
           <div className="space-y-6">
             
-            {/* Input Usuário */}
+            {/* Input Usuário com Domínio Fixo */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
                 Usuário Corporativo
               </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400 group-focus-within:text-salomao-blue" />
+              
+              <div className="flex items-stretch shadow-sm">
+                {/* Campo de Digitação (Lado Esquerdo) */}
+                <div className="relative flex-grow focus-within:z-10">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-l-lg rounded-r-none bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-salomao-blue/20 focus:border-salomao-blue transition-all"
+                    placeholder="nome.sobrenome"
+                    required
+                  />
                 </div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-salomao-blue/20 focus:border-salomao-blue transition-all"
-                  placeholder="nome.sobrenome@salomaoadv.com.br"
-                  required
-                />
+
+                {/* Bloco Fixo (Lado Direito) */}
+                <div className="flex items-center px-4 bg-gray-200 border border-l-0 border-gray-200 rounded-r-lg text-gray-500 text-sm font-medium select-none">
+                  @salomaoadv.com.br
+                </div>
               </div>
             </div>
 
@@ -85,7 +95,7 @@ export default function Login() {
             </div>
 
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-2 rounded border border-red-100">
+              <div className="text-red-600 text-sm bg-red-50 p-2 rounded border border-red-100 text-center">
                 {error}
               </div>
             )}
@@ -95,7 +105,7 @@ export default function Login() {
               disabled={loading}
               className="w-full flex items-center justify-center py-4 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-[#112240] hover:bg-[#1a3a6c] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-salomao-blue transition-colors uppercase tracking-wider"
             >
-              {loading ? 'Carregando...' : 'Acessar Sistema'}
+              {loading ? 'Validando...' : 'Acessar Sistema'}
               {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
             </button>
           </div>
@@ -108,10 +118,9 @@ export default function Login() {
         </div>
       </div>
 
-      {/* LADO DIREITO - Banner (Azul Escuro) */}
+      {/* LADO DIREITO - Banner (Azul Escuro) - Mantido Igual */}
       <div className="hidden md:flex md:w-1/2 bg-[#112240] flex-col justify-center px-24 relative overflow-hidden">
         
-        {/* Círculo decorativo igual ao print */}
         <div className="absolute top-1/2 left-24 -translate-y-[180%]">
              <div className="h-12 w-12 rounded-full border border-gray-600 flex items-center justify-center">
                 <ArrowRight className="text-salomao-gold h-5 w-5" />
@@ -123,7 +132,6 @@ export default function Login() {
             Portal de Gestão<br/>
             Estratégica
           </h2>
-          {/* Linha dourada decorativa */}
           <div className="h-1 w-16 bg-yellow-600 mb-6 mt-4"></div>
 
           <p className="text-gray-300 text-lg font-light leading-relaxed max-w-md">
@@ -132,14 +140,12 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Footer do lado direito */}
         <div className="absolute bottom-8 left-24">
            <p className="text-[10px] text-gray-500 tracking-widest">
              © 2026 Salomão Advogados • Portal Gestão
            </p>
         </div>
         
-        {/* Gradiente sutil para dar profundidade (opcional) */}
         <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/5 to-transparent pointer-events-none"></div>
       </div>
     </div>
