@@ -25,11 +25,11 @@ export interface ClientData {
 interface NewClientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  clientToEdit?: ClientData | null; // Propriedade opcional para edição
+  onSave: (client: ClientData) => void; // NOVA PROPRIEDADE
+  clientToEdit?: ClientData | null;
 }
 
-export function NewClientModal({ isOpen, onClose, clientToEdit }: NewClientModalProps) {
-  // Estado inicial vazio
+export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewClientModalProps) {
   const initialData: ClientData = {
     nome: '',
     empresa: '',
@@ -53,23 +53,20 @@ export function NewClientModal({ isOpen, onClose, clientToEdit }: NewClientModal
   const [loadingCep, setLoadingCep] = useState(false)
   const [isNewSocio, setIsNewSocio] = useState(false)
 
-  // Sócios pré-cadastrados
   const socios = ['Marcio Gama', 'Rodrigo Salomão', 'Outro Sócio']
 
-  // EFEITO: Quando o modal abre, verifica se é Edição ou Criação
   useEffect(() => {
     if (isOpen) {
       if (clientToEdit) {
-        setFormData(clientToEdit) // Preenche com os dados do cliente
+        setFormData(clientToEdit)
       } else {
-        setFormData(initialData) // Reseta para vazio
+        setFormData(initialData)
       }
     }
   }, [isOpen, clientToEdit])
 
   if (!isOpen) return null
 
-  // Máscara de CEP
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '')
     if (value.length > 5) {
@@ -78,7 +75,6 @@ export function NewClientModal({ isOpen, onClose, clientToEdit }: NewClientModal
     setFormData({ ...formData, cep: value })
   }
 
-  // Busca ViaCEP
   const handleCepBlur = async () => {
     const cepClean = formData.cep.replace(/\D/g, '')
     if (cepClean.length === 8) {
@@ -104,16 +100,14 @@ export function NewClientModal({ isOpen, onClose, clientToEdit }: NewClientModal
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Aqui entraria a lógica de salvar no Supabase (Update ou Insert)
-    console.log(clientToEdit ? "Atualizando:" : "Criando:", formData)
-    onClose()
+    // AQUI ESTÁ A CORREÇÃO: Chamamos a função onSave passada pelo pai
+    onSave(formData)
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto backdrop-blur-sm">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl my-8 transform transition-all">
         
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div>
             <h2 className="text-xl font-bold text-[#112240]">
@@ -128,10 +122,8 @@ export function NewClientModal({ isOpen, onClose, clientToEdit }: NewClientModal
           </button>
         </div>
 
-        {/* Formulário */}
         <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
           
-          {/* Coluna 1 */}
           <div className="space-y-5">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Dados Corporativos</h3>
             
@@ -185,7 +177,6 @@ export function NewClientModal({ isOpen, onClose, clientToEdit }: NewClientModal
             </div>
           </div>
 
-          {/* Coluna 2 */}
           <div className="space-y-5">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Logística de Brindes</h3>
 
@@ -265,14 +256,12 @@ export function NewClientModal({ isOpen, onClose, clientToEdit }: NewClientModal
             </div>
           </div>
 
-          {/* Observações */}
           <div className="md:col-span-2">
              <label className="block text-sm font-medium text-gray-700 mb-1">Observações Internas</label>
              <textarea rows={3} className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#112240] outline-none resize-none" 
                value={formData.observacoes} onChange={e => setFormData({...formData, observacoes: e.target.value})} placeholder="Ex: Cliente prefere contato via WhatsApp..."></textarea>
           </div>
 
-          {/* Footer */}
           <div className="md:col-span-2 flex justify-end gap-3 pt-6 border-t border-gray-100">
              <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors">
                Cancelar
