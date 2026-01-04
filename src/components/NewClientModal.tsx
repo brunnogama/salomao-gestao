@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { supabase } from '../lib/supabase' // Importamos o supabase para buscar a lista
+import { supabase } from '../lib/supabase'
 
-// Interface dos dados do cliente
 export interface ClientData {
   id?: number;
   nome: string;
   empresa: string;
   cargo: string;
+  telefone: string; // NOVO CAMPO
   tipoBrinde: string;
   outroBrinde?: string;
   quantidade: number;
@@ -35,6 +35,7 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
     nome: '',
     empresa: '',
     cargo: '',
+    telefone: '', // INICIALIZAR VAZIO
     tipoBrinde: 'Brinde Médio',
     outroBrinde: '',
     quantidade: 1,
@@ -54,24 +55,14 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
   const [loadingCep, setLoadingCep] = useState(false)
   const [isNewSocio, setIsNewSocio] = useState(false)
   
-  // Lista dinâmica de sócios (Começa com os padrões, mas cresce com o banco de dados)
   const [availableSocios, setAvailableSocios] = useState<string[]>(['Marcio Gama', 'Rodrigo Salomão'])
 
-  // Função para buscar sócios existentes no banco
   const fetchExistingSocios = async () => {
     try {
-      const { data } = await supabase
-        .from('clientes')
-        .select('socio')
-      
+      const { data } = await supabase.from('clientes').select('socio')
       if (data) {
-        // Pega todos os sócios do banco, remove vazios/nulos
         const dbSocios = data.map(c => c.socio).filter(Boolean)
-        
-        // Junta com os padrões e remove duplicatas usando Set
         const uniqueSocios = Array.from(new Set(['Marcio Gama', 'Rodrigo Salomão', ...dbSocios]))
-        
-        // Ordena alfabeticamente
         setAvailableSocios(uniqueSocios.sort())
       }
     } catch (error) {
@@ -81,10 +72,7 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
 
   useEffect(() => {
     if (isOpen) {
-      // 1. Carrega a lista atualizada de sócios do banco
       fetchExistingSocios()
-
-      // 2. Preenche o formulário (Edição ou Novo)
       if (clientToEdit) {
         setFormData(clientToEdit)
         setIsNewSocio(false)
@@ -96,6 +84,15 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
   }, [isOpen, clientToEdit])
 
   if (!isOpen) return null
+
+  // Máscara de telefone simples
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '')
+    // (11) 99999-9999
+    value = value.replace(/^(\d{2})(\d)/g, '($1) $2')
+    value = value.replace(/(\d)(\d{4})$/, '$1-$2')
+    setFormData({ ...formData, telefone: value })
+  }
 
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '')
@@ -153,7 +150,6 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
 
         <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
           
-          {/* Coluna 1 */}
           <div className="space-y-5">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Dados Corporativos</h3>
             
@@ -163,6 +159,15 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
               </label>
               <input required type="text" className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#112240] focus:ring-1 focus:ring-[#112240] outline-none transition-all" 
                 value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} placeholder="Ex: João da Silva" />
+            </div>
+
+            {/* NOVO CAMPO TELEFONE */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Telefone / WhatsApp
+              </label>
+              <input type="text" maxLength={15} className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#112240] focus:ring-1 focus:ring-[#112240] outline-none" 
+                value={formData.telefone} onChange={handlePhoneChange} placeholder="(11) 99999-9999" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -200,14 +205,13 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                   onChange={(e) => {
                     if(e.target.value === 'new') {
                       setIsNewSocio(true)
-                      setFormData({...formData, socio: ''}) // Limpa para obrigar a digitar
+                      setFormData({...formData, socio: ''})
                     } else {
                       setFormData({...formData, socio: e.target.value})
                     }
                   }}
                 >
                   <option value="">Selecione um sócio...</option>
-                  {/* Renderiza a lista dinâmica */}
                   {availableSocios.map(s => <option key={s} value={s}>{s}</option>)}
                   <option value="new" className="font-bold text-blue-600">+ Adicionar Novo</option>
                 </select>
@@ -222,7 +226,6 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
             </div>
           </div>
 
-          {/* Coluna 2 */}
           <div className="space-y-5">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Logística de Brindes</h3>
 
@@ -320,14 +323,12 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
             </div>
           </div>
 
-          {/* Observações */}
           <div className="md:col-span-2">
              <label className="block text-sm font-medium text-gray-700 mb-1">Observações Internas</label>
              <textarea rows={3} className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#112240] outline-none resize-none" 
                value={formData.observacoes} onChange={e => setFormData({...formData, observacoes: e.target.value})} placeholder="Ex: Cliente prefere contato via WhatsApp..."></textarea>
           </div>
 
-          {/* Footer */}
           <div className="md:col-span-2 flex justify-end gap-3 pt-6 border-t border-gray-100">
              <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors">
                Cancelar
