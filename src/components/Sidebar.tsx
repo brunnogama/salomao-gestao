@@ -56,19 +56,15 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
     return () => clearInterval(interval)
   }, [])
 
-  // --- LOGOUT BLINDADO ---
   const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault()
-    
-    // 1. Tenta avisar o Supabase (SignOut)
     try {
       await supabase.auth.signOut()
     } catch (error) {
       console.error("Erro silencioso ao deslogar:", error)
     } finally {
-      // 2. INDEPENDENTE de erro ou sucesso, força a limpeza local e o reload
-      localStorage.clear() // Limpa qualquer lixo local
-      window.location.href = '/' // Força o reload para a tela de login
+      localStorage.clear()
+      window.location.href = '/'
     }
   }
   
@@ -90,7 +86,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
       {/* OVERLAY MOBILE */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
       )}
@@ -98,21 +94,26 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
       {/* SIDEBAR */}
       <aside className={`
         fixed md:static inset-y-0 left-0 z-50
-        h-screen w-64 bg-[#112240] text-gray-300 flex flex-col font-sans border-r border-gray-800 flex-shrink-0
+        h-[100dvh] w-64 bg-[#112240] text-gray-300 flex flex-col font-sans border-r border-gray-800 flex-shrink-0
         transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
         md:translate-x-0 shadow-2xl md:shadow-none
       `}>
       
-        {/* LOGO */}
-        <div className="h-24 flex items-center justify-between px-6 bg-[#112240] flex-shrink-0">
-          <img src="/logo-branca.png" alt="Salomão" className="h-12 w-auto object-contain" />
-          <button onClick={onClose} className="md:hidden p-1 hover:bg-white/10 rounded text-gray-400">
+        {/* 1. Logo & Botão Fechar */}
+        <div className="h-20 md:h-24 flex items-center justify-between px-4 md:px-6 bg-[#112240] flex-shrink-0 border-b border-gray-800/50 md:border-none">
+          <img src="/logo-branca.png" alt="Salomão" className="h-10 md:h-12 w-auto object-contain" />
+          
+          {/* Botão X melhor posicionado */}
+          <button 
+            onClick={onClose} 
+            className="md:hidden p-2 hover:bg-white/10 rounded-lg text-gray-400 transition-colors"
+          >
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        {/* MENU TOPO */}
+        {/* 2. Menu Principal (Topo) */}
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
           {mainItems.map((item) => (
             <button
@@ -137,7 +138,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
           ))}
         </div>
 
-        {/* MENU BASE */}
+        {/* 3. Menu Inferior */}
         <div className="pt-4 pb-2 px-3 bg-[#112240] flex-shrink-0">
           <div className="border-t border-gray-700/50 mb-4 mx-2"></div>
           {bottomItems.map((item) => (
@@ -154,8 +155,8 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
           ))}
         </div>
 
-        {/* USUÁRIO & LOGOUT */}
-        <div className="p-4 bg-[#0d1b33] flex-shrink-0">
+        {/* 4. Rodapé do Usuário (Com padding extra para mobile) */}
+        <div className="p-4 bg-[#0d1b33] flex-shrink-0 pb-8 md:pb-4">
           <div className="flex items-center justify-between rounded-lg bg-[#112240] p-3 border border-gray-800/50">
               <div className="flex items-center gap-3">
                   <UserCircle className="h-8 w-8 text-gray-400" />
@@ -164,7 +165,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
                   </span>
               </div>
               <button 
-                onClick={handleLogout}
+                onClick={handleLogout} 
                 className="text-red-500 hover:text-red-400 transition-colors p-1 hover:bg-white/5 rounded"
                 title="Sair do Sistema"
               >
