@@ -25,8 +25,20 @@ export function Settings() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // --- VERSÕES DO SISTEMA (CHANGELOG) ---
+  // --- VERSÕES DO SISTEMA (CHANGELOG ATUALIZADO) ---
   const changelog = [
+    {
+      version: '1.3',
+      date: '05/01/2026',
+      type: 'feat',
+      title: 'Interatividade e Mobilidade',
+      items: [
+        'Suporte completo a dispositivos móveis (Menu Responsivo).',
+        'Impressão de Fichas Cadastrais (PDF) e Relatórios em Lista.',
+        'Interatividade no Dashboard (Clique nos gráficos filtra a lista de clientes).',
+        'Filtros por Data no Histórico de Atividades.'
+      ]
+    },
     {
       version: '1.2.1',
       date: '05/01/2026',
