@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Filter, LayoutList, LayoutGrid, Pencil, Trash2, X, AlertTriangle, ChevronDown, FileSpreadsheet, RefreshCw, ArrowUpDown, MessageCircle, Phone, MapPin, Mail, Briefcase, Gift, Info } from 'lucide-react'
+import { Plus, Filter, LayoutList, LayoutGrid, Pencil, Trash2, X, AlertTriangle, ChevronDown, FileSpreadsheet, RefreshCw, ArrowUpDown, MessageCircle, Phone, MapPin, Mail, Briefcase, Gift, Info, User } from 'lucide-react'
 import { NewClientModal, ClientData } from './NewClientModal'
 import { utils, writeFile } from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -67,7 +67,7 @@ export function Clients() {
   const uniqueBrindes = Array.from(new Set(clients.map(c => c.tipoBrinde).filter(Boolean)))
 
   const processedClients = useMemo(() => {
-    let result = clients.filter(client => {
+    let result = [...clients].filter(client => {
       const matchesSocio = socioFilter ? client.socio === socioFilter : true
       const matchesBrinde = brindeFilter ? client.tipoBrinde === brindeFilter : true
       return matchesSocio && matchesBrinde
@@ -75,8 +75,8 @@ export function Clients() {
 
     if (sortBy) {
       result.sort((a, b) => {
-        let valA = (sortBy === 'nome' ? a.nome : a.socio) || ''
-        let valB = (sortBy === 'nome' ? b.nome : b.socio) || ''
+        const valA = (sortBy === 'nome' ? a.nome : a.socio) || ''
+        const valB = (sortBy === 'nome' ? b.nome : b.socio) || ''
         return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA)
       })
     }
@@ -96,7 +96,7 @@ export function Clients() {
     if(e) e.stopPropagation();
     const cleanPhone = client.telefone ? client.telefone.replace(/\D/g, '') : ''
     if(!cleanPhone) return
-    const message = `Olá Sr(a). ${client.nome}, somos do Salomão Advogados...`
+    const message = `Olá Sr(a). ${client.nome}, somos do Salomão Advogados.`
     const url = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`
     window.open(url, '_blank')
   }
@@ -140,7 +140,7 @@ export function Clients() {
       await fetchClients()
       setIsModalOpen(false)
       setClientToEdit(null)
-      setSelectedClient(null) // Fecha visualização se estava aberta
+      setSelectedClient(null)
     } catch (error: any) {
       alert(`Erro ao salvar: ${error.message}`)
     }
@@ -153,7 +153,7 @@ export function Clients() {
         if (error) throw error
         await fetchClients()
         setClientToDelete(null)
-        setSelectedClient(null) // Fecha visualização se estava aberta
+        setSelectedClient(null)
       } catch (error: any) {
         alert(`Erro ao excluir: ${error.message}`)
       }
@@ -169,6 +169,21 @@ export function Clients() {
   const handleDeleteClick = (client: Client, e?: React.MouseEvent) => {
     if(e) e.stopPropagation();
     setClientToDelete(client);
+  }
+
+  const handleExportExcel = () => {
+    const dataToExport = processedClients.map(client => ({
+      "Nome": client.nome,
+      "Empresa": client.empresa,
+      "Sócio": client.socio,
+      "Brinde": client.tipoBrinde,
+      "Email": client.email,
+      "Telefone": client.telefone
+    }))
+    const ws = utils.json_to_sheet(dataToExport)
+    const wb = utils.book_new()
+    utils.book_append_sheet(wb, ws, "Clientes")
+    writeFile(wb, "Relatorio_Clientes_Salomao.xlsx")
   }
 
   return (
