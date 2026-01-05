@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { 
   Download, Upload, FileSpreadsheet, CheckCircle, AlertCircle, 
-  Users, Pencil, Trash2, Save, X, RefreshCw, Briefcase, 
+  Users, Pencil, Trash2, Save, X, RefreshCw, 
   AlertTriangle, History, Code, Building, User, Copyright 
 } from 'lucide-react'
 import { utils, read, writeFile } from 'xlsx'
