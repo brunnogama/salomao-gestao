@@ -17,7 +17,6 @@ export function Settings() {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' })
   
-  // Estados para Gestão de Sócios
   const [sociosStats, setSociosStats] = useState<SocioStats[]>([])
   const [loadingSocios, setLoadingSocios] = useState(false)
   const [editingSocio, setEditingSocio] = useState<string | null>(null)
@@ -25,8 +24,19 @@ export function Settings() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // --- VERSÕES DO SISTEMA (CHANGELOG ATUALIZADO) ---
+  // --- CHANGELOG ATUALIZADO ---
   const changelog = [
+    {
+      version: '1.3.1',
+      date: '05/01/2026',
+      type: 'fix',
+      title: 'Estabilidade e UX Mobile',
+      items: [
+        'Correção crítica no Logout: Saída do sistema agora é instantânea e segura.',
+        'Ajuste na Sidebar Mobile: Botão fechar reposicionado e altura corrigida para 100dvh.',
+        'Correção de sobreposição do rodapé do usuário em telas pequenas.'
+      ]
+    },
     {
       version: '1.3',
       date: '05/01/2026',
@@ -130,18 +140,15 @@ export function Settings() {
     }
   }
 
-  // --- RESET TOTAL DO SISTEMA ---
+  // --- RESET TOTAL ---
   const handleSystemReset = async () => {
     const confirmation = prompt("ATENÇÃO: ISSO APAGARÁ TODOS OS DADOS!\n\nDigite 'DELETAR' para confirmar o reset completo do sistema.");
     
     if (confirmation === 'DELETAR') {
         setLoading(true);
         try {
-            // 1. Apagar Clientes
             await supabase.from('clientes').delete().neq('id', 0);
-            // 2. Apagar Tarefas
-            await supabase.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // UUID dummy
-            // 3. Apagar Logs
+            await supabase.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000'); 
             await supabase.from('logs').delete().neq('id', 0);
 
             await logAction('EXCLUIR', 'SISTEMA', 'Realizou RESET TOTAL do sistema');
@@ -156,7 +163,7 @@ export function Settings() {
     }
   }
 
-  // --- IMPORTAÇÃO E EXPORTAÇÃO ---
+  // --- IMPORTAÇÃO ---
   const handleDownloadTemplate = () => {
     const templateData = [{ "Nome Completo": "Exemplo Silva", "Empresa": "Empresa Teste", "Sócio Responsável": "Sócio" }]
     const ws = utils.json_to_sheet(templateData)
@@ -221,10 +228,10 @@ export function Settings() {
   return (
     <div className="max-w-6xl mx-auto pb-12 space-y-8">
       
-      {/* SEÇÃO 1: GESTÃO E DADOS (Lado a Lado) */}
+      {/* SEÇÃO 1: GESTÃO */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* Gestão de Sócios */}
+        {/* Sócios */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -267,7 +274,7 @@ export function Settings() {
             </div>
         </div>
 
-        {/* Importação de Dados */}
+        {/* Importação */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-blue-50 rounded-lg text-blue-700"><FileSpreadsheet className="h-6 w-6" /></div>
@@ -298,10 +305,9 @@ export function Settings() {
         </div>
       </div>
 
-      {/* SEÇÃO 2: CRÉDITOS E ZONA DE PERIGO */}
+      {/* SEÇÃO 2: SOBRE E PERIGO */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         
-        {/* CARD DE CRÉDITOS */}
         <div className="md:col-span-2 bg-[#112240] text-white rounded-xl shadow-lg p-8 relative overflow-hidden">
             <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
@@ -347,18 +353,16 @@ export function Settings() {
                 </div>
             </div>
             
-            {/* Elemento Decorativo de Fundo */}
             <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
         </div>
 
-        {/* ZONA DE PERIGO (RESET) */}
         <div className="bg-red-50 rounded-xl border border-red-100 p-6 flex flex-col justify-center items-center text-center">
             <div className="p-3 bg-red-100 rounded-full text-red-600 mb-4">
                 <AlertTriangle className="h-8 w-8" />
             </div>
             <h3 className="font-bold text-red-900 text-lg mb-2">Zona de Perigo</h3>
             <p className="text-xs text-red-700/80 mb-6 leading-relaxed">
-                Esta ação apagará <strong>todos</strong> os clientes, tarefas e logs do sistema permanentemente. Não há como desfazer.
+                Esta ação apagará <strong>todos</strong> os dados do sistema permanentemente.
             </p>
             <button 
                 onClick={handleSystemReset}
