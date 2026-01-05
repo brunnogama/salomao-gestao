@@ -24,7 +24,6 @@ interface SidebarProps {
 export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: SidebarProps) {
   const [incompleteCount, setIncompleteCount] = useState(0)
 
-  // Lógica do Contador de Incompletos
   const fetchCount = async () => {
     const { data } = await supabase.from('clientes').select('*')
     if (data) {
@@ -57,12 +56,25 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
     return () => clearInterval(interval)
   }, [])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    // O App.tsx vai detectar o logout e trocar para a tela de Login automaticamente
+  // --- FUNÇÃO DE LOGOUT CORRIGIDA ---
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault() // Evita recarregamento imediato
+    try {
+      // 1. Aguarda o Supabase destruir a sessão
+      const { error } = await supabase.auth.signOut()
+      
+      if (error) throw error
+
+      // 2. O App.tsx detectará a mudança de sessão automaticamente
+      // Mas por segurança, podemos forçar a ida para a home (login)
+      window.location.href = '/'
+      
+    } catch (error) {
+      console.error("Erro ao sair:", error)
+      alert("Erro ao tentar sair. Por favor, tente novamente.")
+    }
   }
   
-  // Lista Principal
   const mainItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clientes', label: 'Clientes', icon: Users },
@@ -70,7 +82,6 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
     { id: 'kanban', label: 'Kanban', icon: KanbanSquare },
   ]
 
-  // Lista Inferior
   const bottomItems = [
     { id: 'manual', label: 'Manual do Sistema', icon: BookOpen },
     { id: 'historico', label: 'Histórico', icon: History },
@@ -79,7 +90,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
 
   return (
     <>
-      {/* OVERLAY ESCURO (MOBILE) */}
+      {/* OVERLAY MOBILE */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
@@ -96,16 +107,15 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
         md:translate-x-0 shadow-2xl md:shadow-none
       `}>
       
-        {/* 1. Logo */}
+        {/* LOGO */}
         <div className="h-24 flex items-center justify-between px-6 bg-[#112240] flex-shrink-0">
           <img src="/logo-branca.png" alt="Salomão" className="h-12 w-auto object-contain" />
-          {/* Botão Fechar (Mobile) */}
           <button onClick={onClose} className="md:hidden p-1 hover:bg-white/10 rounded text-gray-400">
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        {/* 2. Menu Principal (Topo) */}
+        {/* MENU TOPO */}
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
           {mainItems.map((item) => (
             <button
@@ -130,7 +140,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
           ))}
         </div>
 
-        {/* 3. Menu Inferior */}
+        {/* MENU BASE */}
         <div className="pt-4 pb-2 px-3 bg-[#112240] flex-shrink-0">
           <div className="border-t border-gray-700/50 mb-4 mx-2"></div>
           {bottomItems.map((item) => (
@@ -147,7 +157,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
           ))}
         </div>
 
-        {/* 4. Rodapé do Usuário */}
+        {/* USUÁRIO & LOGOUT */}
         <div className="p-4 bg-[#0d1b33] flex-shrink-0">
           <div className="flex items-center justify-between rounded-lg bg-[#112240] p-3 border border-gray-800/50">
               <div className="flex items-center gap-3">
@@ -157,7 +167,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
                   </span>
               </div>
               <button 
-                onClick={handleLogout}
+                onClick={handleLogout} // Chama a função corrigida
                 className="text-red-500 hover:text-red-400 transition-colors p-1 hover:bg-white/5 rounded"
                 title="Sair do Sistema"
               >
