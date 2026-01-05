@@ -102,7 +102,10 @@ export function Clients() {
     const phoneToClean = client.telefone || '';
     const cleanPhone = phoneToClean.replace(/\D/g, '');
     
-    if(!cleanPhone) return;
+    if(!cleanPhone) {
+        alert("Telefone não cadastrado.");
+        return;
+    }
 
     const message = `Olá Sr(a). ${client.nome}, somos do Salomão Advogados.
 
@@ -134,7 +137,10 @@ Agradecemos a atenção!`;
     const phoneToCall = client.telefone || '';
     const cleanPhone = phoneToCall.replace(/\D/g, '');
     
-    if(!cleanPhone) return;
+    if(!cleanPhone) {
+        alert("Telefone não cadastrado.");
+        return;
+    }
     window.location.href = `tel:${cleanPhone}`;
   }
 
@@ -308,9 +314,20 @@ Agradecemos a atenção!`;
                     <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full flex-shrink-0 ${client.tipoBrinde === 'Brinde VIP' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>{client.tipoBrinde}</span>
                   </div>
                   
-                  {/* ENDEREÇO E TELEFONE NO CARD */}
+                  {/* MODIFICADO: Bloco de endereço e telefone sempre visível no card */}
                   <div className="bg-gray-50/50 rounded-md p-2 border border-gray-100 mb-3 text-xs space-y-1">
                     <div className="flex justify-between items-center"><span className="text-gray-400">Sócio:</span><span className="font-bold text-[#112240]">{client.socio}</span></div>
+                    
+                    {/* Endereço compactado com tooltip */}
+                    {(client.endereco) && (
+                         <div className="flex justify-between items-start gap-2">
+                            <span className="text-gray-400 whitespace-nowrap">End:</span>
+                            <span className="text-gray-600 font-medium truncate text-right" title={`${client.endereco}, ${client.numero || ''} - ${client.bairro || ''}`}>
+                                {client.endereco}, {client.numero}
+                            </span>
+                         </div>
+                    )}
+
                     {(client.cidade || client.estado) && (
                         <div className="flex justify-between items-center"><span className="text-gray-400">Local:</span><span className="text-gray-600 font-medium">{client.cidade ? `${client.cidade}/${client.estado}` : client.estado}</span></div>
                     )}
@@ -319,9 +336,9 @@ Agradecemos a atenção!`;
                     )}
                   </div>
 
-                  <div className="border-t border-gray-100 pt-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="border-t border-gray-100 pt-3 flex justify-between items-center transition-opacity">
                     <div className="flex gap-2">
-                      {/* Ícones de contato só aparecem se houver telefone */}
+                      {/* Ícones de contato sempre visíveis se houver telefone */}
                       {client.telefone && (
                         <>
                             <button onClick={(e) => handleWhatsApp(client, e)} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors"><MessageCircle className="h-4 w-4" /></button>
