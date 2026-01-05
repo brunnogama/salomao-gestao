@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Plus, Clock, CheckCircle2, Circle, X, Pencil, Trash2, Calendar, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { logAction } from '../lib/logger'; // Importe
 
+// ... (Interface Task e COLUMNS permanecem iguais)
 interface Task {
   id: string;
   title: string;
@@ -19,6 +21,7 @@ const COLUMNS = [
 ];
 
 export function Kanban() {
+  // ... (States permanecem iguais)
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -33,11 +36,7 @@ export function Kanban() {
   }, []);
 
   const fetchTasks = async () => {
-    const { data } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('created_at', { ascending: true });
-    
+    const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: true });
     if (data) setTasks(data as Task[]);
   };
 
@@ -51,6 +50,7 @@ export function Kanban() {
     setTasks(updatedTasks);
 
     await supabase.from('tasks').update({ status: newStatus }).eq('id', draggableId);
+    await logAction('EDITAR', 'KANBAN', `Moveu tarefa para ${newStatus}: ${updatedTasks.find(t => t.id === draggableId)?.title}`);
   };
 
   const handleAddTask = async (e: React.FormEvent) => {
@@ -58,6 +58,7 @@ export function Kanban() {
     const { data, error } = await supabase.from('tasks').insert([newTask]).select();
     if (!error && data) {
       setTasks([...tasks, data[0] as Task]);
+      await logAction('CRIAR', 'KANBAN', `Nova tarefa: ${newTask.title}`);
       setIsAddModalOpen(false);
       setNewTask({ title: '', description: '', priority: 'MEDIA', status: 'todo' });
     }
@@ -67,13 +68,11 @@ export function Kanban() {
     e.preventDefault();
     if (!selectedTask) return;
 
-    const { error } = await supabase
-      .from('tasks')
-      .update(editFormData)
-      .eq('id', selectedTask.id);
+    const { error } = await supabase.from('tasks').update(editFormData).eq('id', selectedTask.id);
 
     if (!error) {
       setTasks(tasks.map(t => t.id === selectedTask.id ? { ...t, ...editFormData } : t));
+      await logAction('EDITAR', 'KANBAN', `Editou tarefa: ${editFormData.title}`);
       setIsEditMode(false);
       setSelectedTask({ ...selectedTask, ...editFormData });
     }
@@ -81,9 +80,11 @@ export function Kanban() {
 
   const deleteTask = async (id: string) => {
     if (confirm('Deseja realmente excluir esta tarefa?')) {
+      const taskToDelete = tasks.find(t => t.id === id);
       const { error } = await supabase.from('tasks').delete().eq('id', id);
       if (!error) {
         setTasks(tasks.filter(t => t.id !== id));
+        await logAction('EXCLUIR', 'KANBAN', `Removeu tarefa: ${taskToDelete?.title}`);
         setIsDetailsModalOpen(false);
       }
     }
@@ -96,15 +97,19 @@ export function Kanban() {
     setIsDetailsModalOpen(true);
   };
 
+  // ... (JSX permanece igual)
   return (
+    // ... todo o JSX do Kanban.tsx anterior, sem mudanças visuais ...
     <div className="h-full flex flex-col overflow-hidden">
       <DragDropContext onDragEnd={onDragEnd}>
+        {/* ... (Conteúdo do Kanban) ... */}
         <div className="flex-1 flex gap-4 overflow-x-auto pb-2 h-full custom-scrollbar">
           {COLUMNS.map((column) => (
             <div key={column.id} className={`flex-shrink-0 w-80 lg:w-96 flex flex-col rounded-xl border h-full ${
               column.color === 'orange' ? 'bg-orange-50/30 border-orange-100' : 
               column.color === 'blue' ? 'bg-blue-50/30 border-blue-100' : 'bg-green-50/30 border-green-100'
             }`}>
+              {/* ... Resto do código igual ao original ... */}
               <div className="p-4 flex items-center justify-between">
                 <div className={`flex items-center gap-2 font-bold text-sm ${
                   column.color === 'orange' ? 'text-orange-700' : 
