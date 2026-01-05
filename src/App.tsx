@@ -3,12 +3,13 @@ import { Sidebar } from './components/Sidebar'
 import { Dashboard } from './components/Dashboard'
 import { Clients } from './components/Clients'
 import { IncompleteClients } from './components/IncompleteClients'
+import { Kanban } from './components/Kanban' // Certifique-se de que este arquivo existe
 import { Auth } from './components/Auth'
 import { supabase } from './lib/supabase'
 
 export default function App() {
   const [session, setSession] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'incomplete'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'kanban' | 'incomplete'>('dashboard')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,7 +32,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 font-sans">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -42,6 +43,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto h-full">
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'clients' && <Clients />}
+          {activeTab === 'kanban' && <Kanban />}
           {activeTab === 'incomplete' && <IncompleteClients />}
         </div>
       </main>
