@@ -73,8 +73,6 @@ export function Kanban() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Título interno removido para evitar duplicidade com o Header do App.tsx */}
-
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex-1 flex gap-4 overflow-x-auto pb-2 h-full">
           {COLUMNS.map((column) => (
@@ -111,7 +109,7 @@ export function Kanban() {
                   <div 
                     {...provided.droppableProps} 
                     ref={provided.innerRef} 
-                    className={`flex-1 p-3 overflow-y-auto min-h-[150px] transition-colors ${snapshot.isDraggingOver ? 'bg-black/5 rounded-b-xl' : ''}`}
+                    className={`flex-1 p-3 overflow-y-auto custom-scrollbar transition-colors ${snapshot.isDraggingOver ? 'bg-black/5 rounded-b-xl' : ''}`}
                   >
                     {tasks.filter(t => t.status === column.id).map((task, index) => (
                       <Draggable key={task.id} draggableId={task.id} index={index}>
@@ -146,7 +144,7 @@ export function Kanban() {
         </div>
       </DragDropContext>
 
-      {/* Modais mantidos conforme versão anterior... */}
+      {/* MODAL NOVA TAREFA */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-scaleIn">
@@ -177,6 +175,7 @@ export function Kanban() {
         </div>
       )}
 
+      {/* MODAL DETALHES */}
       {isDetailsModalOpen && selectedTask && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-scaleIn">
@@ -192,7 +191,7 @@ export function Kanban() {
               <div className="mb-6"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Título</label><h3 className="text-lg font-bold text-gray-800">{selectedTask.title}</h3></div>
               <div className="mb-8"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Descrição</label><p className="text-gray-600 leading-relaxed">{selectedTask.description || 'Sem descrição.'}</p></div>
               <div className="grid grid-cols-2 gap-6 pb-8 border-b border-gray-100">
-                <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Prioridade</label><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded text-xs font-bold">{selectedTask.priority}</span></div>
+                <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Prioridade</label><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded text-xs font-bold uppercase tracking-widest">{selectedTask.priority}</span></div>
                 <div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Status</label><span className="text-sm font-bold text-gray-700 capitalize">{COLUMNS.find(c => c.id === selectedTask.status)?.title}</span></div>
               </div>
               <div className="mt-6 text-[10px] text-gray-400 font-medium uppercase tracking-widest">Criado em {new Date(selectedTask.created_at).toLocaleDateString()}</div>
