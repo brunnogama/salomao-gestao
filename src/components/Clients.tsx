@@ -104,23 +104,22 @@ export function Clients() {
     
     if(!cleanPhone) { alert("Telefone não cadastrado."); return; }
 
-    const message = `Olá Sr(a). ${client.nome}.
+    const message = `Olá Sr(a). ${client.nome}, somos do Salomão Advogados.
 
-Somos do Salomão Advogados e estamos atualizando nossa base de dados.
-Poderia, por gentileza, confirmar se as informações abaixo estão corretas?
+Estamos atualizando nossa base de dados. Poderia, por gentileza, confirmar se as informações abaixo estão corretas?
 
-🏢 Empresa: ${client.empresa || '-'}
-📮 CEP: ${client.cep || '-'}
-📍 Endereço: ${client.endereco || '-'}
-🔢 Número: ${client.numero || '-'}
-🏘️ Bairro: ${client.bairro || '-'}
-🏙️ Cidade/UF: ${client.cidade || '-'}/${client.estado || '-'}
-📝 Complemento: ${client.complemento || '-'}
-📧 E-mail: ${client.email || '-'}
+🏢 *Empresa:* ${client.empresa || '-'}
+📮 *CEP:* ${client.cep || '-'}
+📍 *Endereço:* ${client.endereco || '-'}
+🔢 *Número:* ${client.numero || '-'}
+🏘️ *Bairro:* ${client.bairro || '-'}
+🏙️ *Cidade/UF:* ${client.cidade || '-'}/${client.estado || '-'}
+📝 *Complemento:* ${client.complemento || '-'}
+📧 *E-mail:* ${client.email || '-'}
 
-📱 Outro número de telefone: (Caso possua, por favor informar)
+📱 *Outro número de telefone:* (Caso possua, por favor informar)
 
-Agradecemos desde já!`;
+Agradecemos a atenção!`;
 
     const url = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
@@ -143,7 +142,7 @@ Agradecemos desde já!`;
 
     const subject = encodeURIComponent("Atualização Cadastral - Salomão Advogados");
     
-    // Texto formatado com quebras de linha explícitas para funcionar em diferentes clientes de e-mail
+    // Texto formatado conforme solicitado
     const bodyText = `Olá Sr(a). ${client.nome}.
 
 Somos do Salomão Advogados e estamos atualizando nossa base de dados.
@@ -157,7 +156,6 @@ Poderia, por gentileza, confirmar se as informações abaixo estão corretas?
 🏙️ Cidade/UF: ${client.cidade || '-'}/${client.estado || '-'}
 📝 Complemento: ${client.complemento || '-'}
 📧 E-mail: ${client.email || '-'}
-
 📱 Outro número de telefone: (Caso possua, por favor informar)
 
 Agradecemos desde já!`;
@@ -365,6 +363,7 @@ Agradecemos desde já!`;
 
                   <div className="border-t border-gray-100 pt-3 flex justify-between items-center transition-opacity">
                     <div className="flex gap-2">
+                      {/* BOTÕES DE CONTATO (WhatsApp, Phone, Email) */}
                       {client.telefone && (
                         <>
                             <button onClick={(e) => handleWhatsApp(client, e)} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors"><MessageCircle className="h-4 w-4" /></button>
