@@ -59,6 +59,7 @@ export function Clients() {
 
   useEffect(() => { fetchClients() }, [])
 
+  // Menus suspensos em ordem alfabética
   const uniqueSocios = useMemo(() => {
     return Array.from(new Set(clients.map(c => c.socio).filter(Boolean))).sort();
   }, [clients]);
@@ -93,18 +94,19 @@ export function Clients() {
     }
   }
 
+  // --- CORREÇÃO NOS HANDLERS DE AÇÃO ---
   const handleWhatsApp = (client: Client, e?: React.MouseEvent) => {
     if(e) {
         e.preventDefault();
         e.stopPropagation();
     }
     
-    // Verificação de segurança para o telefone
+    // Verificação de segurança: garante que existe telefone antes de tentar limpar
     const phoneToClean = client.telefone || '';
     const cleanPhone = phoneToClean.replace(/\D/g, '');
     
     if(!cleanPhone) {
-        alert("Telefone não cadastrado para este cliente.");
+        alert(`O cliente ${client.nome} não possui um telefone válido cadastrado para WhatsApp.`);
         return;
     }
 
@@ -129,17 +131,17 @@ Agradecemos a atenção!`;
     window.open(url, '_blank');
   }
 
-  const handle3CX = (client: Client, e?: React.MouseEvent) => {
+  const handle3CX = (phone: string, e?: React.MouseEvent) => {
     if(e) {
         e.preventDefault();
         e.stopPropagation();
     }
     
-    const phoneToCall = client.telefone || '';
+    const phoneToCall = phone || '';
     const cleanPhone = phoneToCall.replace(/\D/g, '');
     
     if(!cleanPhone) {
-        alert("Telefone não cadastrado.");
+        alert("Número de telefone inválido ou não cadastrado.");
         return;
     }
     window.location.href = `tel:${cleanPhone}`;
@@ -184,14 +186,20 @@ Agradecemos a atenção!`;
   }
 
   const handleEdit = (client: Client, e?: React.MouseEvent) => {
-    if(e) e.stopPropagation();
+    if(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setSelectedClient(null);
     setClientToEdit(client);
     setTimeout(() => { setIsModalOpen(true); }, 10);
   }
 
   const handleDeleteClick = (client: Client, e?: React.MouseEvent) => {
-    if(e) e.stopPropagation();
+    if(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setClientToDelete(client);
   }
 
@@ -320,12 +328,8 @@ Agradecemos a atenção!`;
                   </div>
                   <div className="border-t border-gray-100 pt-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="flex gap-2">
-                      <button onClick={(e) => handleWhatsApp(client, e)} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors">
-                        <MessageCircle className="h-4 w-4" />
-                      </button>
-                      <button onClick={(e) => handle3CX(client, e)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors">
-                        <Phone className="h-4 w-4" />
-                      </button>
+                      <button onClick={(e) => handleWhatsApp(client, e)} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors"><MessageCircle className="h-4 w-4" /></button>
+                      <button onClick={(e) => handle3CX(client.telefone, e)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"><Phone className="h-4 w-4" /></button>
                     </div>
                     <div className="flex gap-1">
                       <button onClick={(e) => handleEdit(client, e)} className="p-1.5 text-gray-500 hover:text-[#112240] rounded-md transition-colors"><Pencil className="h-4 w-4" /></button>
@@ -364,7 +368,7 @@ Agradecemos a atenção!`;
                         </button>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <button onClick={(e) => handle3CX(client, e)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors">
+                        <button onClick={(e) => handle3CX(client.telefone, e)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors">
                           <Phone className="h-4 w-4" />
                         </button>
                       </td>
