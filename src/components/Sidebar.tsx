@@ -9,7 +9,8 @@ import {
   LogOut,
   UserCircle,
   FileWarning,
-  X 
+  X,
+  Grid // Ícone para "Módulos"
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -19,9 +20,10 @@ interface SidebarProps {
   userName: string;
   isOpen: boolean;
   onClose: () => void;
+  onSwitchModule: () => void; // NOVA PROP
 }
 
-export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: SidebarProps) {
+export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose, onSwitchModule }: SidebarProps) {
   const [incompleteCount, setIncompleteCount] = useState(0)
 
   const fetchCount = async () => {
@@ -100,20 +102,15 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
         md:translate-x-0 shadow-2xl md:shadow-none
       `}>
       
-        {/* 1. Logo & Botão Fechar */}
-        <div className="h-20 md:h-24 flex items-center justify-between px-4 md:px-6 bg-[#112240] flex-shrink-0 border-b border-gray-800/50 md:border-none">
-          <img src="/logo-branca.png" alt="Salomão" className="h-10 md:h-12 w-auto object-contain" />
-          
-          {/* Botão X melhor posicionado */}
-          <button 
-            onClick={onClose} 
-            className="md:hidden p-2 hover:bg-white/10 rounded-lg text-gray-400 transition-colors"
-          >
+        {/* LOGO */}
+        <div className="h-24 flex items-center justify-between px-6 bg-[#112240] flex-shrink-0">
+          <img src="/logo-branca.png" alt="Salomão" className="h-12 w-auto object-contain" />
+          <button onClick={onClose} className="md:hidden p-1 hover:bg-white/10 rounded text-gray-400">
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        {/* 2. Menu Principal (Topo) */}
+        {/* MENU TOPO */}
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
           {mainItems.map((item) => (
             <button
@@ -138,7 +135,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
           ))}
         </div>
 
-        {/* 3. Menu Inferior */}
+        {/* MENU BASE */}
         <div className="pt-4 pb-2 px-3 bg-[#112240] flex-shrink-0">
           <div className="border-t border-gray-700/50 mb-4 mx-2"></div>
           {bottomItems.map((item) => (
@@ -155,8 +152,17 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
           ))}
         </div>
 
-        {/* 4. Rodapé do Usuário (Com padding extra para mobile) */}
-        <div className="p-4 bg-[#0d1b33] flex-shrink-0 pb-8 md:pb-4">
+        {/* USUÁRIO & AÇÕES */}
+        <div className="p-4 bg-[#0d1b33] flex-shrink-0 pb-8 md:pb-4 space-y-2">
+          
+          {/* Botão Voltar aos Módulos */}
+          <button 
+            onClick={onSwitchModule}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-900/30 hover:bg-blue-800/50 text-blue-200 hover:text-white transition-colors text-xs font-bold border border-blue-800/30"
+          >
+            <Grid className="h-3 w-3" /> Trocar Módulo
+          </button>
+
           <div className="flex items-center justify-between rounded-lg bg-[#112240] p-3 border border-gray-800/50">
               <div className="flex items-center gap-3">
                   <UserCircle className="h-8 w-8 text-gray-400" />
