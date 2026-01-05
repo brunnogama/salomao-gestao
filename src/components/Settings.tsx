@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-import { Download, Upload, FileSpreadsheet, CheckCircle, AlertCircle, Users, Pencil, Trash2, Save, X, RefreshCw, Briefcase } from 'lucide-react'
+import { 
+  Download, Upload, FileSpreadsheet, CheckCircle, AlertCircle, 
+  Users, Pencil, Trash2, Save, X, RefreshCw, Briefcase, 
+  AlertTriangle, History, Code, Building, User, Copyright 
+} from 'lucide-react'
 import { utils, read, writeFile } from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { logAction } from '../lib/logger' // Importe
+import { logAction } from '../lib/logger'
 
 interface SocioStats {
   nome: string;
@@ -13,6 +17,7 @@ export function Settings() {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' })
   
+  // Estados para Gestão de Sócios
   const [sociosStats, setSociosStats] = useState<SocioStats[]>([])
   const [loadingSocios, setLoadingSocios] = useState(false)
   const [editingSocio, setEditingSocio] = useState<string | null>(null)
@@ -20,6 +25,39 @@ export function Settings() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // --- VERSÕES DO SISTEMA (CHANGELOG) ---
+  const changelog = [
+    {
+      version: '1.2.1',
+      date: '05/01/2026',
+      type: 'fix',
+      title: 'Polimento Visual e UX',
+      items: ['Correção de tooltips no Dashboard', 'Ajuste de alinhamento nos cards de Clientes', 'Formatação de e-mail padronizada']
+    },
+    {
+      version: '1.2',
+      date: '05/01/2026',
+      type: 'feat',
+      title: 'Módulo de Histórico e Auditoria',
+      items: ['Criação do sistema de Logs', 'Rastreabilidade de usuários', 'Exportação de Logs']
+    },
+    {
+      version: '1.1',
+      date: '04/01/2026',
+      type: 'feat',
+      title: 'Funcionalidades Core',
+      items: ['Integração com ViaCEP', 'Busca inteligente de endereço', 'Gráficos de Estados no Dashboard', 'Máscara de CEP']
+    },
+    {
+      version: '1.0',
+      date: '01/01/2026',
+      type: 'major',
+      title: 'Lançamento do Sistema',
+      items: ['Estrutura inicial', 'Autenticação', 'Kanban', 'Gestão de Clientes']
+    }
+  ];
+
+  // --- GESTÃO DE SÓCIOS ---
   const fetchSocios = async () => {
     setLoadingSocios(true)
     try {
@@ -64,7 +102,7 @@ export function Settings() {
   }
 
   const handleDeleteSocio = async (name: string) => {
-    if (confirm(`ATENÇÃO: Você está prestes a remover o vínculo do sócio "${name}".`)) {
+    if (confirm(`ATENÇÃO: Remover vínculo do sócio "${name}"?`)) {
       setLoadingSocios(true)
       try {
         const { error } = await supabase.from('clientes').update({ socio: null }).eq('socio', name)
@@ -80,8 +118,35 @@ export function Settings() {
     }
   }
 
+  // --- RESET TOTAL DO SISTEMA ---
+  const handleSystemReset = async () => {
+    const confirmation = prompt("ATENÇÃO: ISSO APAGARÁ TODOS OS DADOS!\n\nDigite 'DELETAR' para confirmar o reset completo do sistema.");
+    
+    if (confirmation === 'DELETAR') {
+        setLoading(true);
+        try {
+            // 1. Apagar Clientes
+            await supabase.from('clientes').delete().neq('id', 0);
+            // 2. Apagar Tarefas
+            await supabase.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // UUID dummy
+            // 3. Apagar Logs
+            await supabase.from('logs').delete().neq('id', 0);
+
+            await logAction('EXCLUIR', 'SISTEMA', 'Realizou RESET TOTAL do sistema');
+            
+            alert('Sistema resetado com sucesso.');
+            window.location.reload();
+        } catch (error: any) {
+            alert(`Erro ao resetar: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    }
+  }
+
+  // --- IMPORTAÇÃO E EXPORTAÇÃO ---
   const handleDownloadTemplate = () => {
-    const templateData = [{ "Nome Completo": "Exemplo", "Empresa": "Empresa", "Sócio Responsável": "Sócio" }]
+    const templateData = [{ "Nome Completo": "Exemplo Silva", "Empresa": "Empresa Teste", "Sócio Responsável": "Sócio" }]
     const ws = utils.json_to_sheet(templateData)
     const wb = utils.book_new()
     utils.book_append_sheet(wb, ws, "Modelo")
@@ -99,7 +164,6 @@ export function Settings() {
       const workbook = read(data)
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const jsonData: any[] = utils.sheet_to_json(worksheet)
-
       if (jsonData.length === 0) throw new Error("A planilha está vazia.")
 
       const clientsToInsert = jsonData.map((row) => ({
@@ -126,191 +190,204 @@ export function Settings() {
       if (error) throw error
 
       await logAction('CRIAR', 'CONFIG', `Importou ${clientsToInsert.length} clientes via Excel`)
-      setStatus({ type: 'success', message: `${clientsToInsert.length} clientes importados com sucesso!` })
+      setStatus({ type: 'success', message: `${clientsToInsert.length} clientes importados!` })
       if (fileInputRef.current) fileInputRef.current.value = ''
       fetchSocios()
-
     } catch (error: any) {
-      console.error(error)
-      setStatus({ type: 'error', message: `Erro na importação: ${error.message}` })
+      setStatus({ type: 'error', message: `Erro: ${error.message}` })
     } finally {
       setLoading(false)
     }
   }
 
-  // ... (JSX permanece igual, sem alterações visuais, apenas lógicas)
+  const getVersionColor = (type: string) => {
+      if (type === 'major') return 'bg-purple-100 text-purple-700 border-purple-200';
+      if (type === 'feat') return 'bg-blue-100 text-blue-700 border-blue-200';
+      return 'bg-gray-100 text-gray-700 border-gray-200';
+  }
+
   return (
-    <div className="max-w-5xl mx-auto pb-10">
-      <h2 className="text-2xl font-bold text-[#112240] mb-6">Configurações do Sistema</h2>
-
-      {/* CARD 1: GESTÃO DE SÓCIOS (AGORA EM GRID DE CARDS) */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-        <div className="flex items-start gap-4 mb-6">
-          <div className="p-3 bg-purple-50 rounded-lg text-purple-700">
-            <Users className="h-8 w-8" />
-          </div>
-          <div className="flex-1">
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-900">Gerenciar Sócios</h3>
-                <button onClick={fetchSocios} className="p-2 text-gray-400 hover:text-[#112240] transition-colors" title="Atualizar Lista">
-                    <RefreshCw className={`h-4 w-4 ${loadingSocios ? 'animate-spin' : ''}`} />
-                </button>
+    <div className="max-w-6xl mx-auto pb-12 space-y-8">
+      
+      {/* SEÇÃO 1: GESTÃO E DADOS (Lado a Lado) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* Gestão de Sócios */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-50 rounded-lg text-purple-700"><Users className="h-6 w-6" /></div>
+                    <h3 className="font-bold text-[#112240] text-lg">Sócios</h3>
+                </div>
+                <button onClick={fetchSocios} className="p-2 text-gray-400 hover:text-[#112240]"><RefreshCw className={`h-4 w-4 ${loadingSocios ? 'animate-spin' : ''}`} /></button>
             </div>
-            <p className="text-gray-500 mt-1 text-sm">
-              Edite nomes incorretos. As alterações refletem em <strong>todos</strong> os clientes vinculados.
-            </p>
-          </div>
-        </div>
-
-        {loadingSocios && sociosStats.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">Carregando lista de sócios...</div>
-        ) : sociosStats.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">Nenhum sócio encontrado na base de dados.</div>
-        ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sociosStats.map((item) => (
-                    <div key={item.nome} className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all group">
-                        
-                        {editingSocio === item.nome ? (
-                            // MODO EDIÇÃO
-                            <div className="flex flex-col gap-3 animate-fadeIn">
-                                <label className="text-xs font-bold text-gray-400 uppercase">Novo Nome</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:border-[#112240] outline-none bg-white"
-                                    value={newSocioName}
-                                    onChange={(e) => setNewSocioName(e.target.value)}
-                                    autoFocus
-                                />
-                                <div className="flex gap-2 mt-1">
-                                    <button 
-                                        onClick={() => handleUpdateSocio(item.nome)}
-                                        className="flex-1 py-1.5 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700 transition-colors flex items-center justify-center gap-1"
-                                    >
-                                        <Save className="h-3 w-3" /> Salvar
-                                    </button>
-                                    <button 
-                                        onClick={() => setEditingSocio(null)}
-                                        className="px-3 py-1.5 bg-gray-200 text-gray-600 rounded text-xs font-bold hover:bg-gray-300 transition-colors"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            // MODO VISUALIZAÇÃO (CARD)
-                            <div className="flex flex-col h-full justify-between">
-                                <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-xs border border-purple-200">
-                                            {item.nome.charAt(0)}
-                                        </div>
-                                        <span className="text-[10px] font-medium bg-white px-2 py-1 rounded-full border border-gray-200 text-gray-500 shadow-sm" title="Clientes Ativos">
-                                            {item.count} clientes
-                                        </span>
+            
+            <div className="flex-1 overflow-y-auto max-h-64 custom-scrollbar pr-2">
+                {loadingSocios && sociosStats.length === 0 ? <p className="text-gray-400 text-sm">Carregando...</p> : (
+                    <div className="space-y-3">
+                        {sociosStats.map((item) => (
+                            <div key={item.nome} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 group hover:border-gray-300 transition-all">
+                                {editingSocio === item.nome ? (
+                                    <div className="flex gap-2 w-full">
+                                        <input type="text" className="flex-1 px-2 py-1 text-sm border rounded" value={newSocioName} onChange={e => setNewSocioName(e.target.value)} autoFocus />
+                                        <button onClick={() => handleUpdateSocio(item.nome)} className="text-green-600"><Save className="h-4 w-4" /></button>
+                                        <button onClick={() => setEditingSocio(null)} className="text-gray-400"><X className="h-4 w-4" /></button>
                                     </div>
-                                    <h4 className="font-bold text-gray-900 text-base leading-tight mb-1">{item.nome}</h4>
-                                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                                        <Briefcase className="h-3 w-3" /> Sócio
-                                    </p>
-                                </div>
-
-                                <div className="mt-4 pt-3 border-t border-gray-200 flex gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                    <button 
-                                        onClick={() => { setEditingSocio(item.nome); setNewSocioName(item.nome); }}
-                                        className="flex-1 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs font-medium hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center justify-center gap-1"
-                                    >
-                                        <Pencil className="h-3 w-3" /> Editar
-                                    </button>
-                                    <button 
-                                        onClick={() => handleDeleteSocio(item.nome)}
-                                        className="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded text-xs font-medium hover:bg-red-50 hover:border-red-300 transition-colors"
-                                        title="Remover Vínculos"
-                                    >
-                                        <Trash2 className="h-3 w-3" />
-                                    </button>
-                                </div>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">{item.nome.charAt(0)}</div>
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-800">{item.nome}</p>
+                                                <p className="text-[10px] text-gray-500">{item.count} clientes</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => { setEditingSocio(item.nome); setNewSocioName(item.nome); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Pencil className="h-3 w-3" /></button>
+                                            <button onClick={() => handleDeleteSocio(item.nome)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="h-3 w-3" /></button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                        )}
+                        ))}
                     </div>
-                ))}
-            </div>
-        )}
-      </div>
-
-      {/* CARD 2: IMPORTAÇÃO */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-        <div className="flex items-start gap-4 mb-6">
-          <div className="p-3 bg-blue-50 rounded-lg text-[#112240]">
-            <FileSpreadsheet className="h-8 w-8" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">Importação em Lote</h3>
-            <p className="text-gray-500 mt-1 text-sm">
-              Adicione múltiplos clientes de uma vez utilizando uma planilha Excel (.xlsx).
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
-            <div>
-              <h4 className="font-medium text-gray-800">1. Baixe a planilha modelo</h4>
-              <p className="text-xs text-gray-500">Utilize este arquivo para preencher os dados corretamente.</p>
-            </div>
-            <button 
-              onClick={handleDownloadTemplate}
-              className="flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors shadow-sm font-medium text-sm"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Baixar Modelo
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
-            <div>
-              <h4 className="font-medium text-gray-800">2. Envie o arquivo preenchido</h4>
-              <p className="text-xs text-gray-500">Selecione o arquivo .xlsx do seu computador.</p>
-            </div>
-            <div className="relative">
-              <input 
-                type="file" 
-                accept=".xlsx, .xls"
-                onChange={handleFileUpload}
-                ref={fileInputRef}
-                className="hidden"
-                id="file-upload"
-                disabled={loading}
-              />
-              <label 
-                htmlFor="file-upload"
-                className={`flex items-center px-4 py-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#112240] hover:bg-[#1a3a6c] cursor-pointer'} text-white rounded-lg transition-colors shadow-sm font-medium text-sm`}
-              >
-                {loading ? (
-                  <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></div>
-                ) : (
-                  <Upload className="h-4 w-4 mr-2" />
                 )}
-                {loading ? 'Processando...' : 'Selecionar Arquivo'}
-              </label>
             </div>
-          </div>
         </div>
 
-        {status.message && (
-          <div className={`mt-6 p-4 rounded-lg flex items-center gap-3 animate-fadeIn ${
-            status.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-          }`}>
-            {status.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-            <span className="font-medium text-sm">{status.message}</span>
-          </div>
-        )}
+        {/* Importação de Dados */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-blue-50 rounded-lg text-blue-700"><FileSpreadsheet className="h-6 w-6" /></div>
+                <h3 className="font-bold text-[#112240] text-lg">Importação em Lote</h3>
+            </div>
+            
+            <div className="space-y-4">
+                <button onClick={handleDownloadTemplate} className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700">
+                    <span>1. Baixar Planilha Modelo</span>
+                    <Download className="h-4 w-4" />
+                </button>
+                
+                <div className="relative">
+                    <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} ref={fileInputRef} className="hidden" id="file-upload" disabled={loading} />
+                    <label htmlFor="file-upload" className={`w-full flex items-center justify-between px-4 py-3 ${loading ? 'bg-gray-100 cursor-not-allowed text-gray-400' : 'bg-[#112240] hover:bg-[#1a3a6c] cursor-pointer text-white'} rounded-lg transition-colors text-sm font-bold shadow-sm`}>
+                        <span>{loading ? 'Processando...' : '2. Enviar Arquivo Preenchido'}</span>
+                        <Upload className="h-4 w-4" />
+                    </label>
+                </div>
+
+                {status.message && (
+                    <div className={`p-3 rounded-lg flex items-center gap-2 text-xs font-bold ${status.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {status.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                        {status.message}
+                    </div>
+                )}
+            </div>
+        </div>
       </div>
 
-      <div className="mt-6 bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-xs text-yellow-800">
-        <strong>Atenção:</strong> Certifique-se de que os nomes das colunas na planilha enviada sejam 
-        exatamente iguais aos da planilha modelo.
+      {/* SEÇÃO 2: CRÉDITOS E ZONA DE PERIGO */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        {/* CARD DE CRÉDITOS */}
+        <div className="md:col-span-2 bg-[#112240] text-white rounded-xl shadow-lg p-8 relative overflow-hidden">
+            <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                    <Code className="h-6 w-6 text-blue-400" />
+                    <h3 className="font-bold text-xl">Sobre o Sistema</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                            <User className="h-5 w-5 text-gray-400 mt-0.5" />
+                            <div>
+                                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Desenvolvedor</p>
+                                <p className="font-bold text-lg">Marcio Gama</p>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <Building className="h-5 w-5 text-gray-400 mt-0.5" />
+                            <div>
+                                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Empresa</p>
+                                <p className="font-bold text-lg">Flow Metrics</p>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <Copyright className="h-5 w-5 text-gray-400 mt-0.5" />
+                            <div>
+                                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold">Direitos</p>
+                                <p className="font-medium text-sm text-gray-300">Todos os direitos reservados © 2026</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-3">Stack Tecnológico</p>
+                        <div className="flex flex-wrap gap-2">
+                            {['React', 'TypeScript', 'Tailwind CSS', 'Supabase', 'Recharts', 'Lucide Icons', 'XLSX'].map(tech => (
+                                <span key={tech} className="px-3 py-1 bg-white/10 rounded-full text-xs font-medium border border-white/10 text-blue-200">
+                                    {tech}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {/* Elemento Decorativo de Fundo */}
+            <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+        </div>
+
+        {/* ZONA DE PERIGO (RESET) */}
+        <div className="bg-red-50 rounded-xl border border-red-100 p-6 flex flex-col justify-center items-center text-center">
+            <div className="p-3 bg-red-100 rounded-full text-red-600 mb-4">
+                <AlertTriangle className="h-8 w-8" />
+            </div>
+            <h3 className="font-bold text-red-900 text-lg mb-2">Zona de Perigo</h3>
+            <p className="text-xs text-red-700/80 mb-6 leading-relaxed">
+                Esta ação apagará <strong>todos</strong> os clientes, tarefas e logs do sistema permanentemente. Não há como desfazer.
+            </p>
+            <button 
+                onClick={handleSystemReset}
+                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-sm shadow-md transition-colors flex items-center justify-center gap-2"
+            >
+                <Trash2 className="h-4 w-4" /> RESETAR SISTEMA
+            </button>
+        </div>
       </div>
+
+      {/* SEÇÃO 3: CHANGELOG */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="flex items-center gap-3 mb-8">
+            <div className="p-2 bg-gray-100 rounded-lg text-gray-600"><History className="h-6 w-6" /></div>
+            <h3 className="font-bold text-[#112240] text-lg">Histórico de Versões</h3>
+        </div>
+
+        <div className="space-y-8 relative before:absolute before:left-2.5 before:top-2 before:h-full before:w-0.5 before:bg-gray-100">
+            {changelog.map((log) => (
+                <div key={log.version} className="relative pl-10">
+                    <div className="absolute left-0 top-1.5 h-5 w-5 rounded-full border-4 border-white bg-gray-300 shadow-sm z-10"></div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
+                        <span className={`px-2 py-0.5 text-[10px] font-black rounded uppercase border w-fit ${getVersionColor(log.type)}`}>
+                            v{log.version}
+                        </span>
+                        <span className="text-xs text-gray-400 font-medium">{log.date}</span>
+                    </div>
+                    <h4 className="font-bold text-gray-800 text-sm mb-2">{log.title}</h4>
+                    <ul className="space-y-1">
+                        {log.items.map((item, idx) => (
+                            <li key={idx} className="text-xs text-gray-500 flex items-start gap-2">
+                                <span className="mt-1.5 h-1 w-1 rounded-full bg-gray-400 flex-shrink-0"></span>
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ))}
+        </div>
+      </div>
+
     </div>
   )
 }
