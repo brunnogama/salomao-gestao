@@ -19,7 +19,7 @@ export interface ClientData {
   email: string
   socio: string
   observacoes: string
-  ignored_fields?: string[] // Novo campo
+  ignored_fields?: string[]
 }
 
 interface NewClientModalProps {
@@ -52,9 +52,9 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // NOVA REGRA DE VALIDAÇÃO: Apenas Nome, Brinde e Sócio são obrigatórios para salvar
+    // REGRA DE CADASTRO FLEXÍVEL: Permite salvar incompleto, apenas Nome, Brinde e Sócio são vitais
     if (!formData.nome || !formData.tipoBrinde || !formData.socio) {
-      alert('Por favor, preencha os campos obrigatórios: Nome, Tipo de Brinde e Sócio Responsável.')
+      alert('Para cadastrar, apenas Nome, Tipo de Brinde e Sócio são obrigatórios. O restante pode ser preenchido depois.')
       return
     }
     onSave(formData)
@@ -67,7 +67,7 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
           <h2 className="text-xl font-bold flex items-center gap-2">
             {clientToEdit ? 'Editar Cliente' : 'Novo Cliente'}
             <span className="text-xs font-normal bg-white/20 px-2 py-1 rounded text-gray-200">
-              * Campos Obrigatórios: Nome, Brinde, Sócio
+              * Mínimo Obrigatório: Nome, Brinde, Sócio
             </span>
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-6 w-6" /></button>
@@ -78,16 +78,16 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
             {/* SEÇÃO 1: IDENTIFICAÇÃO (Mínimo Obrigatório) */}
             <section>
               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2 mb-4 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" /> Dados Obrigatórios
+                <AlertCircle className="h-4 w-4" /> Dados Essenciais
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-1">
                   <label className="block text-sm font-bold text-gray-700 mb-1">Nome Completo *</label>
-                  <input type="text" required value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] focus:border-transparent outline-none transition-all" placeholder="Ex: João Silva" />
+                  <input type="text" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] focus:border-transparent outline-none transition-all" placeholder="Ex: João Silva" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Sócio Responsável *</label>
-                  <select required value={formData.socio} onChange={e => setFormData({...formData, socio: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none">
+                  <select value={formData.socio} onChange={e => setFormData({...formData, socio: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none">
                     <option value="">Selecione...</option>
                     <option value="Rodrigo Salomão">Rodrigo Salomão</option>
                     <option value="Livia Sancio">Livia Sancio</option>
@@ -99,7 +99,7 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Categoria do Brinde *</label>
-                  <select required value={formData.tipoBrinde} onChange={e => setFormData({...formData, tipoBrinde: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none">
+                  <select value={formData.tipoBrinde} onChange={e => setFormData({...formData, tipoBrinde: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none">
                     <option value="">Selecione...</option>
                     <option value="Brinde VIP">Brinde VIP</option>
                     <option value="Brinde Médio">Brinde Médio</option>
@@ -109,7 +109,7 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
               </div>
             </section>
 
-            {/* RESTANTE DOS CAMPOS (Opcionais no cadastro, mas cobrados no Incompletos) */}
+            {/* RESTANTE DOS CAMPOS (Opcionais aqui, mas aparecerão nos Incompletos se vazios) */}
             <section>
               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2 mb-4">Informações Complementares</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
