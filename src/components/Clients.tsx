@@ -134,16 +134,19 @@ export function Clients() {
       await fetchClients()
       setIsModalOpen(false)
       setClientToEdit(null)
-      setSelectedClient(null) 
     } catch (error: any) {
       alert(`Erro ao salvar: ${error.message}`)
     }
   }
 
+  // FUNÇÃO CORRIGIDA PARA EVITAR SOBREPOSIÇÃO
   const handleEdit = (client: Client, e?: React.MouseEvent) => {
     if(e) e.stopPropagation();
-    setClientToEdit(client)
-    setIsModalOpen(true)
+    setSelectedClient(null); // FECHA o modal de visualização primeiro
+    setClientToEdit(client);
+    setTimeout(() => {
+      setIsModalOpen(true); // ABRE o modal de edição logo em seguida
+    }, 10);
   }
 
   const handleDeleteClick = (client: Client, e?: React.MouseEvent) => {
@@ -160,12 +163,17 @@ export function Clients() {
 
   return (
     <div className="h-full flex flex-col relative">
-      {/* MODAL DE FORMULÁRIO - Z-INDEX 100 (Sempre na frente) */}
-      <NewClientModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setClientToEdit(null); }} onSave={handleSaveClient} clientToEdit={clientToEdit} />
+      {/* FORMULÁRIO (Novo/Editar) - Nível mais alto de Z-INDEX */}
+      <NewClientModal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setClientToEdit(null); }} 
+        onSave={handleSaveClient} 
+        clientToEdit={clientToEdit} 
+      />
 
-      {/* MODAL DE EXCLUSÃO - Z-INDEX 110 */}
+      {/* MODAL DE EXCLUSÃO */}
       {clientToDelete && (
-        <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-scaleIn">
              <div className="flex items-center gap-4 mb-4 text-red-600">
                <div className="bg-red-100 p-3 rounded-full"><AlertTriangle className="h-6 w-6" /></div>
@@ -185,9 +193,9 @@ export function Clients() {
         </div>
       )}
 
-      {/* VISUALIZAÇÃO COMPLETA - Z-INDEX 80 (Atrás do formulário) */}
+      {/* VISUALIZAÇÃO DETALHADA - Z-INDEX INTERMEDIÁRIO */}
       {selectedClient && (
-        <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4 backdrop-blur-md animate-fadeIn">
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 animate-scaleIn">
             <div className="bg-[#112240] p-6 text-white flex justify-between items-center">
               <div className="flex items-center gap-4">
@@ -217,7 +225,7 @@ export function Clients() {
               </div>
             </div>
             <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-              <button onClick={(e) => handleEdit(selectedClient, e)} className="px-5 py-2.5 bg-[#112240] text-white rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#1a3a6c] transition-all shadow-md"><Pencil className="h-4 w-4" /> Editar Cadastro</button>
+              <button onClick={(e) => handleEdit(selectedClient, e)} className="px-5 py-2.5 bg-[#112240] text-white rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-[#1a3a6c] transition-all"><Pencil className="h-4 w-4" /> Editar Cadastro</button>
               <button onClick={(e) => handleDeleteClick(selectedClient, e)} className="px-5 py-2.5 bg-red-50 text-red-600 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-red-100 transition-all border border-red-100"><Trash2 className="h-4 w-4" /> Excluir</button>
             </div>
           </div>
@@ -229,7 +237,7 @@ export function Clients() {
         <div className="flex items-center gap-3 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 px-1">
            <div className="relative group">
              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Filter className="h-4 w-4" /></div>
-             <select value={socioFilter} onChange={(e) => setSocioFilter(e.target.value)} className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#112240]/20 min-w-[160px]">
+             <select value={socioFilter} onChange={(e) => setSocioFilter(e.target.value)} className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-300 outline-none focus:ring-2 focus:ring-[#112240]/20 min-w-[160px]">
                 <option value="">Sócio: Todos</option>
                 {uniqueSocios.map(s => <option key={s} value={s}>{s}</option>)}
              </select>
@@ -237,13 +245,13 @@ export function Clients() {
            </div>
            <div className="relative group">
              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Filter className="h-4 w-4" /></div>
-             <select value={brindeFilter} onChange={(e) => setBrindeFilter(e.target.value)} className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#112240]/20 min-w-[160px]">
+             <select value={brindeFilter} onChange={(e) => setBrindeFilter(e.target.value)} className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-300 outline-none focus:ring-2 focus:ring-[#112240]/20 min-w-[160px]">
                 <option value="">Brinde: Todos</option>
                 {uniqueBrindes.map(b => <option key={b} value={b}>{b}</option>)}
              </select>
              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><ChevronDown className="h-4 w-4" /></div>
            </div>
-           <div className="flex bg-white border border-gray-200 rounded-lg p-1 gap-1 shadow-sm">
+           <div className="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
               <button onClick={() => toggleSort('nome')} className={`flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'nome' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}><ArrowUpDown className="h-3 w-3 mr-1" /> Nome</button>
               <button onClick={() => toggleSort('socio')} className={`flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${sortBy === 'socio' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}><ArrowUpDown className="h-3 w-3 mr-1" /> Sócio</button>
            </div>
@@ -255,42 +263,19 @@ export function Clients() {
         <div className="flex items-center gap-3 w-full xl:w-auto">
             <button onClick={fetchClients} className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50"><RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} /></button>
             <button onClick={handleExportExcel} className="flex-1 xl:flex-none flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-md gap-2 font-medium text-sm"><FileSpreadsheet className="h-5 w-5" /> Exportar</button>
-            <button onClick={() => { setClientToEdit(null); setIsModalOpen(true); }} className="flex-1 xl:flex-none flex items-center justify-center px-5 py-2.5 bg-[#112240] text-white rounded-lg hover:bg-[#1a3a6c] transition-all shadow-md gap-2 font-bold text-sm"><Plus className="h-5 w-5" /> Novo Cliente</button>
+            <button onClick={() => { setSelectedClient(null); setClientToEdit(null); setIsModalOpen(true); }} className="flex-1 xl:flex-none flex items-center justify-center px-5 py-2.5 bg-[#112240] text-white rounded-lg hover:bg-[#1a3a6c] transition-all shadow-md gap-2 font-bold text-sm"><Plus className="h-5 w-5" /> Novo Cliente</button>
         </div>
       </div>
 
-      {/* CONTEÚDO (CARDS / LISTA) */}
+      {/* GRID DE CARDS */}
       <div className="flex-1 overflow-auto pb-4">
         {loading && clients.length === 0 ? (
           <div className="flex h-full items-center justify-center"><RefreshCw className="h-8 w-8 animate-spin text-[#112240]" /></div>
         ) : (
           <div className={viewMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "bg-white border border-gray-200 rounded-xl overflow-hidden"}>
-            {viewMode === 'list' ? (
-               <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Brinde</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sócio</th>
-                      <th className="px-6 py-4"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {processedClients.map(client => (
-                      <tr key={client.id} onClick={() => setSelectedClient(client)} className="hover:bg-blue-50/30 transition-colors cursor-pointer group">
-                        <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-bold text-gray-900">{client.nome}</div><div className="text-xs text-gray-500">{client.empresa}</div></td>
-                        <td className="px-6 py-4"><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100">{client.tipoBrinde}</span></td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{client.socio}</td>
-                        <td className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => handleEdit(client, e)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"><Pencil className="h-4 w-4" /></button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-               </table>
-            ) : (
+            {viewMode === 'card' ? (
               processedClients.map(client => (
-                <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all relative group cursor-pointer">
+                <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all relative group cursor-pointer animate-fadeIn">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex gap-3 overflow-hidden">
                       <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-[#112240] font-bold border border-gray-200 flex-shrink-0">{client.nome.charAt(0)}</div>
@@ -298,9 +283,9 @@ export function Clients() {
                     </div>
                     <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full flex-shrink-0 ${client.tipoBrinde === 'Brinde VIP' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>{client.tipoBrinde}</span>
                   </div>
-                  <div className="bg-gray-50/50 rounded-md p-2 border border-gray-100 mb-3">
-                    <div className="flex justify-between text-xs mb-1"><span className="text-gray-400">Sócio:</span><span className="font-bold text-[#112240]">{client.socio}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-gray-400">UF:</span><span className="text-gray-600 font-medium">{client.estado || '-'}</span></div>
+                  <div className="bg-gray-50/50 rounded-md p-2 border border-gray-100 mb-3 text-xs">
+                    <div className="flex justify-between mb-1"><span className="text-gray-400">Sócio:</span><span className="font-bold text-[#112240]">{client.socio}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">UF:</span><span className="text-gray-600 font-medium">{client.estado || '-'}</span></div>
                   </div>
                   <div className="border-t border-gray-100 pt-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="flex gap-2">
@@ -314,6 +299,29 @@ export function Clients() {
                   </div>
                 </div>
               ))
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Brinde</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sócio</th>
+                    <th className="px-6 py-4"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {processedClients.map(client => (
+                    <tr key={client.id} onClick={() => setSelectedClient(client)} className="hover:bg-blue-50/30 transition-colors cursor-pointer group">
+                      <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-bold text-gray-900">{client.nome}</div><div className="text-xs text-gray-500">{client.empresa}</div></td>
+                      <td className="px-6 py-4"><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100">{client.tipoBrinde}</span></td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{client.socio}</td>
+                      <td className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => handleEdit(client, e)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"><Pencil className="h-4 w-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         )}
