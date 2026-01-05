@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { History as HistoryIcon, Search, Filter, ArrowDown, ArrowUp, RefreshCw } from 'lucide-react'
+import { Search, RefreshCw } from 'lucide-react'
 import { utils, writeFile } from 'xlsx'
 
 interface LogItem {
@@ -24,7 +24,7 @@ export function History() {
       .from('logs')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(100) // Limita aos últimos 100 para performance
+      .limit(100)
 
     if (error) console.error(error)
     else setLogs(data || [])
