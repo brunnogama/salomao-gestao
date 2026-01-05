@@ -1,3 +1,10 @@
+Para corrigir o desalinhamento dos cards e garantir que todos tenham a mesma altura, ajustei o bloco de informações (Endereço, Local e Telefone).
+
+Agora, **todos os campos são exibidos sempre**. Se a informação não existir, o sistema exibirá um traço (`-`) no lugar, mantendo a estrutura visual fixa e alinhando perfeitamente a barra de botões inferior.
+
+### Arquivo Atualizado: `src/components/Clients.tsx`
+
+```tsx
 import { useState, useEffect, useMemo } from 'react'
 import { Plus, Filter, LayoutList, LayoutGrid, Pencil, Trash2, X, AlertTriangle, ChevronDown, FileSpreadsheet, RefreshCw, ArrowUpDown, MessageCircle, Phone, MapPin, Mail, Briefcase, Gift, Info, User } from 'lucide-react'
 import { NewClientModal, ClientData } from './NewClientModal'
@@ -282,7 +289,7 @@ Agradecemos a atenção!`;
       )}
 
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
-        <div className="flex items-center gap-3 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 px-1">
+        <div className="flex items-center gap-3 w-full xl:w-auto overflow-x-auto pb-2 px-1">
            <div className="relative group">
              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Filter className="h-4 w-4" /></div>
              <select value={socioFilter} onChange={(e) => setSocioFilter(e.target.value)} className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-300 outline-none focus:ring-2 focus:ring-[#112240]/20 min-w-[160px]">
@@ -322,7 +329,7 @@ Agradecemos a atenção!`;
           <div className={viewMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "bg-white border border-gray-200 rounded-xl overflow-hidden"}>
             {viewMode === 'card' ? (
               processedClients.map(client => (
-                <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all relative group cursor-pointer animate-fadeIn">
+                <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all relative group cursor-pointer animate-fadeIn flex flex-col justify-between">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex gap-3 overflow-hidden">
                       <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-[#112240] font-bold border border-gray-200 flex-shrink-0">{client.nome.charAt(0)}</div>
@@ -331,24 +338,31 @@ Agradecemos a atenção!`;
                     <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full flex-shrink-0 ${client.tipoBrinde === 'Brinde VIP' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>{client.tipoBrinde}</span>
                   </div>
                   
+                  {/* MODIFICADO: Bloco de endereço e telefone sempre visível e completo */}
                   <div className="bg-gray-50/50 rounded-md p-2 border border-gray-100 mb-3 text-xs space-y-1">
-                    <div className="flex justify-between items-center"><span className="text-gray-400">Sócio:</span><span className="font-bold text-[#112240]">{client.socio}</span></div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Sócio:</span>
+                        <span className="font-bold text-[#112240]">{client.socio || '-'}</span>
+                    </div>
                     
-                    {(client.endereco) && (
-                         <div className="flex justify-between items-start gap-2">
-                            <span className="text-gray-400 whitespace-nowrap">End:</span>
-                            <span className="text-gray-600 font-medium truncate text-right" title={`${client.endereco}, ${client.numero || ''} - ${client.bairro || ''}`}>
-                                {client.endereco}, {client.numero}
-                            </span>
-                         </div>
-                    )}
+                    <div className="flex justify-between items-start gap-2">
+                        <span className="text-gray-400 whitespace-nowrap">End:</span>
+                        <span className="text-gray-600 font-medium truncate text-right" title={`${client.endereco}, ${client.numero || ''} - ${client.bairro || ''}`}>
+                            {client.endereco ? `${client.endereco}, ${client.numero || ''}` : '-'}
+                        </span>
+                    </div>
 
-                    {(client.cidade || client.estado) && (
-                        <div className="flex justify-between items-center"><span className="text-gray-400">Local:</span><span className="text-gray-600 font-medium">{client.cidade ? `${client.cidade}/${client.estado}` : client.estado}</span></div>
-                    )}
-                    {client.telefone && (
-                        <div className="flex justify-between items-center"><span className="text-gray-400">Tel:</span><span className="text-gray-600 font-medium">{client.telefone}</span></div>
-                    )}
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Local:</span>
+                        <span className="text-gray-600 font-medium">
+                            {client.cidade || client.estado ? `${client.cidade || ''}/${client.estado || ''}` : '-'}
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Tel:</span>
+                        <span className="text-gray-600 font-medium">{client.telefone || '-'}</span>
+                    </div>
                   </div>
 
                   <div className="border-t border-gray-100 pt-3 flex justify-between items-center transition-opacity">
@@ -438,3 +452,5 @@ Agradecemos a atenção!`;
     </div>
   )
 }
+
+```
