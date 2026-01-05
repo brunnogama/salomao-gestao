@@ -279,7 +279,7 @@ Agradecemos a atenção!`
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto pb-4">
+      <div className="flex-1 overflow-auto pb-4 font-medium">
         {loading && clients.length === 0 ? (
           <div className="flex h-full items-center justify-center"><RefreshCw className="h-8 w-8 animate-spin text-[#112240]" /></div>
         ) : (
@@ -314,21 +314,21 @@ Agradecemos a atenção!`
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Empresa</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sócio</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Brinde</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">WhatsApp</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Ligar</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Ações</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Cliente</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Empresa</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Sócio</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Brinde</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">WhatsApp</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Ligar</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 bg-white">
                   {processedClients.map(client => (
                     <tr key={client.id} onClick={() => setSelectedClient(client)} className="hover:bg-blue-50/30 transition-colors cursor-pointer group">
-                      <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-bold text-gray-900">{client.nome}</div></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{client.empresa}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{client.socio}</td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 text-sm">{client.nome}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-600 text-sm">{client.empresa}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-600 text-sm">{client.socio}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${client.tipoBrinde === 'Brinde VIP' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
                           {client.tipoBrinde}
@@ -345,7 +345,7 @@ Agradecemos a atenção!`
                         </button>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={(e) => handleEdit(client, e)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md">
                             <Pencil className="h-4 w-4" />
                           </button>
