@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Filter, LayoutList, LayoutGrid, Pencil, Trash2, X, AlertTriangle, ChevronDown, FileSpreadsheet, RefreshCw, ArrowUpDown, MessageCircle, Phone, MapPin, Mail, Briefcase, Gift, Info, User } from 'lucide-react'
+import { Plus, Filter, LayoutList, LayoutGrid, Pencil, X, ChevronDown, RefreshCw, MessageCircle, Phone, MapPin, Mail, Briefcase, Gift, User } from 'lucide-react'
 import { NewClientModal, ClientData } from './NewClientModal'
-import { utils, writeFile } from 'xlsx'
 import { supabase } from '../lib/supabase'
 
 interface Client extends ClientData {
@@ -14,22 +13,17 @@ export function Clients() {
   const [loading, setLoading] = useState(true)
   
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null)
-  const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
   const [socioFilter, setSocioFilter] = useState('')
-  const [brindeFilter, setBrindeFilter] = useState('')
-  
-  const [sortBy, setSortBy] = useState<'nome' | 'socio' | null>('nome')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-
   const [clients, setClients] = useState<Client[]>([])
 
   const fetchClients = async () => {
     setLoading(true)
     const { data, error } = await supabase.from('clientes').select('*')
-    if (error) console.error('Erro ao buscar clientes:', error)
-    else {
+    if (error) {
+      console.error('Erro ao buscar clientes:', error)
+    } else {
       const formattedClients: Client[] = data.map((item: any) => ({
         id: item.id,
         nome: item.nome,
@@ -57,7 +51,6 @@ export function Clients() {
 
   useEffect(() => { fetchClients() }, [])
 
-  // --- AÇÕES DE CONTATO REATIVADAS ---
   const handleWhatsApp = (client: Client, e?: React.MouseEvent) => {
     if(e) e.stopPropagation();
     const cleanPhone = client.telefone ? client.telefone.replace(/\D/g, '') : ''
@@ -84,39 +77,38 @@ Agradecemos a atenção!`
     window.open(url, '_blank')
   }
 
-  const handle3CX = (phone: string, e?: React.MouseEvent) => {
+  const handleEdit = (client: Client, e?: React.MouseEvent) => {
     if(e) e.stopPropagation();
-    if(!phone) return
-    window.location.href = `tel:${phone.replace(/\D/g, '')}`
+    setSelectedClient(null); // Fecha visualização para evitar sobreposição
+    setClientToEdit(client);
+    setTimeout(() => setIsModalOpen(true), 10);
   }
 
-  const uniqueSocios = useMemo(() => Array.from(new Set(clients.map(c => c.socio).filter(Boolean))).sort(), [clients])
-  const uniqueBrindes = useMemo(() => Array.from(new Set(clients.map(c => c.tipoBrinde).filter(Boolean))).sort(), [clients])
+  const uniqueSocios = useMemo(() => 
+    Array.from(new Set(clients.map(c => c.socio).filter(Boolean))).sort()
+  , [clients])
 
   const processedClients = useMemo(() => {
-    let result = [...clients].filter(client => {
-      const matchesSocio = socioFilter ? client.socio === socioFilter : true
-      const matchesBrinde = brindeFilter ? client.tipoBrinde === brindeFilter : true
-      return matchesSocio && matchesBrinde
-    })
-    if (sortBy) {
-      result.sort((a, b) => {
-        const valA = (sortBy === 'nome' ? a.nome : a.socio) || ''
-        const valB = (sortBy === 'nome' ? b.nome : b.socio) || ''
-        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA)
-      })
-    }
+    let result = [...clients].filter(client => 
+      socioFilter ? client.socio === socioFilter : true
+    )
+    result.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
     return result
-  }, [clients, socioFilter, brindeFilter, sortBy, sortDirection])
+  }, [clients, socioFilter])
 
   return (
     <div className="h-full flex flex-col relative">
-      <NewClientModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setClientToEdit(null); }} onSave={fetchClients} clientToEdit={clientToEdit} />
+      <NewClientModal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setClientToEdit(null); }} 
+        onSave={fetchClients} 
+        clientToEdit={clientToEdit} 
+      />
 
       {/* MODAL VISUALIZAÇÃO DETALHADA */}
       {selectedClient && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 animate-scaleIn">
             <div className="bg-[#112240] p-6 text-white flex justify-between items-center">
               <h2 className="text-xl font-bold">{selectedClient.nome}</h2>
               <div className="flex items-center gap-2">
@@ -138,6 +130,11 @@ Agradecemos a atenção!`
                 <p className="text-sm flex items-center gap-3"><User className="h-4 w-4 text-blue-600" /> Sócio: {selectedClient.socio}</p>
               </div>
             </div>
+            <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button onClick={(e) => handleEdit(selectedClient, e)} className="px-5 py-2.5 bg-[#112240] text-white rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-black transition-all shadow-md">
+                <Pencil className="h-4 w-4" /> Editar Cadastro
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -147,7 +144,7 @@ Agradecemos a atenção!`
         <div className="flex items-center gap-3 w-full xl:w-auto overflow-x-auto pb-2 px-1">
           <div className="relative group">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <select value={socioFilter} onChange={(e) => setSocioFilter(e.target.value)} className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium min-w-[160px] outline-none focus:ring-2 focus:ring-[#112240]/20">
+            <select value={socioFilter} onChange={(e) => setSocioFilter(e.target.value)} className="appearance-none pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium min-w-[160px] outline-none">
               <option value="">Sócio: Todos</option>
               {uniqueSocios.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -157,37 +154,57 @@ Agradecemos a atenção!`
             <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-gray-100 text-[#112240]' : 'text-gray-400'}`}><LayoutList className="h-5 w-5" /></button>
             <button onClick={() => setViewMode('card')} className={`p-1.5 rounded-md ${viewMode === 'card' ? 'bg-gray-100 text-[#112240]' : 'text-gray-400'}`}><LayoutGrid className="h-5 w-5" /></button>
           </div>
-          <button onClick={fetchClients} className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-lg"><RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} /></button>
+          <button onClick={fetchClients} className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50"><RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} /></button>
         </div>
-        <div className="flex items-center gap-3 w-full xl:w-auto">
-          <button onClick={() => { setClientToEdit(null); setIsModalOpen(true); }} className="flex-1 xl:flex-none flex items-center justify-center px-5 py-2.5 bg-[#112240] text-white rounded-lg hover:bg-[#1a3a6c] transition-all shadow-md gap-2 font-bold text-sm"><Plus className="h-5 w-5" /> Novo Cliente</button>
-        </div>
+        <button onClick={() => { setClientToEdit(null); setIsModalOpen(true); }} className="px-5 py-2.5 bg-[#112240] text-white rounded-lg hover:bg-[#1a3a6c] transition-all shadow-md flex items-center gap-2 font-bold text-sm"><Plus className="h-5 w-5" /> Novo Cliente</button>
       </div>
 
       {/* GRID DE CARDS */}
       <div className="flex-1 overflow-auto pb-4">
-        <div className={viewMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "bg-white border border-gray-200 rounded-xl overflow-hidden"}>
-          {processedClients.map(client => (
-            <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all group cursor-pointer animate-fadeIn">
-              <div className="flex items-start justify-between mb-3">
-                <div className="overflow-hidden">
-                  <h3 className="text-sm font-bold text-gray-900 truncate">{client.nome}</h3>
-                  <p className="text-xs text-gray-500 truncate">{client.empresa}</p>
+        {viewMode === 'card' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {processedClients.map(client => (
+              <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all group cursor-pointer animate-fadeIn">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="overflow-hidden">
+                    <h3 className="text-sm font-bold text-gray-900 truncate">{client.nome}</h3>
+                    <p className="text-xs text-gray-500 truncate">{client.empresa}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${client.tipoBrinde === 'Brinde VIP' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>{client.tipoBrinde}</span>
                 </div>
-                <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${client.tipoBrinde === 'Brinde VIP' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>{client.tipoBrinde}</span>
+                <div className="border-t border-gray-100 pt-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-2">
+                    <button onClick={(e) => handleWhatsApp(client, e)} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors"><MessageCircle className="h-4 w-4" /></button>
+                  </div>
+                  <button onClick={(e) => handleEdit(client, e)} className="p-1.5 text-gray-500 hover:text-[#112240] rounded-md transition-colors"><Pencil className="h-4 w-4" /></button>
+                </div>
               </div>
-              <div className="border-t border-gray-100 pt-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="flex gap-2">
-                  <button onClick={(e) => handleWhatsApp(client, e)} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors" title="WhatsApp Formal"><MessageCircle className="h-4 w-4" /></button>
-                  <button onClick={(e) => handle3CX(client.telefone, e)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors" title="Ligar 3CX"><Phone className="h-4 w-4" /></button>
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={(e) => { e.stopPropagation(); setClientToEdit(client); setIsModalOpen(true); }} className="p-1.5 text-gray-500 hover:text-[#112240] rounded-md transition-colors"><Pencil className="h-4 w-4" /></button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
+                <tr>
+                  <th className="px-6 py-4 text-left">Cliente</th>
+                  <th className="px-6 py-4 text-left">Sócio</th>
+                  <th className="px-6 py-4"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {processedClients.map(client => (
+                  <tr key={client.id} onClick={() => setSelectedClient(client)} className="hover:bg-blue-50/30 transition-colors cursor-pointer group">
+                    <td className="px-6 py-4"><div className="text-sm font-bold text-gray-900">{client.nome}</div></td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{client.socio}</td>
+                    <td className="px-6 py-4 text-right">
+                      <button onClick={(e) => handleEdit(client, e)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"><Pencil className="h-4 w-4" /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
