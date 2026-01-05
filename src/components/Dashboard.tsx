@@ -22,6 +22,35 @@ interface DashboardStats {
   stateData: StateData[];
 }
 
+// --- COMPONENTE DE TOOLTIP UNIFICADO ---
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    // Pega a cor do payload ou define um fallback
+    const color = data.payload.fill || data.color || '#3b82f6';
+    
+    return (
+      <div className="bg-white p-3 rounded-xl shadow-xl border border-gray-100 min-w-[140px] animate-fadeIn">
+        <p className="text-xs font-bold text-gray-800 border-b border-gray-100 pb-1 mb-2 capitalize">
+          {label}
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: color }} />
+            <span className="text-xs text-gray-500 font-medium capitalize">
+              {data.name || 'Quantidade'}:
+            </span>
+          </div>
+          <span className="text-sm font-bold text-[#112240]">
+            {data.value}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({ 
     totalClients: 0, 
@@ -47,7 +76,6 @@ export function Dashboard() {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Agora buscamos também o campo 'estado'
       const { data: allData } = await supabase
         .from('clientes')
         .select('tipo_brinde, socio, estado');
@@ -57,12 +85,10 @@ export function Dashboard() {
       const stateMap: Record<string, number> = {};
 
       allData?.forEach(item => {
-        // Contagem de Brindes
         if (item.tipo_brinde) {
           brindeCounts[item.tipo_brinde] = (brindeCounts[item.tipo_brinde] || 0) + 1;
         }
 
-        // Contagem por Sócio
         if (item.socio) {
           if (!socioMap[item.socio]) {
             socioMap[item.socio] = { name: item.socio, total: 0, brindes: {} };
@@ -72,7 +98,6 @@ export function Dashboard() {
           socioMap[item.socio].brindes[tBrinde] = (socioMap[item.socio].brindes[tBrinde] || 0) + 1;
         }
 
-        // Contagem por Estado (Normaliza para Maiúsculas e trata nulos)
         const estado = item.estado ? item.estado.toUpperCase().trim() : 'ND';
         stateMap[estado] = (stateMap[estado] || 0) + 1;
       });
@@ -86,10 +111,9 @@ export function Dashboard() {
         }))
       }));
 
-      // Formatação dos dados de Estado para o gráfico
       const formattedStateData = Object.entries(stateMap)
         .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value); // Ordenar do maior para o menor
+        .sort((a, b) => b.value - a.value);
 
       setStats({
         totalClients: allData?.length || 0,
@@ -183,9 +207,10 @@ export function Dashboard() {
                         tick={{fill: '#64748b', fontWeight: 600}}
                         interval={0} 
                       />
+                      {/* TOOLTIP UNIFICADA AQUI */}
                       <Tooltip 
-                        cursor={{fill: 'transparent'}}
-                        contentStyle={{borderRadius: '8px', border: 'none', fontSize: '11px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}}
+                        content={<CustomTooltip />} 
+                        cursor={{fill: '#f8fafc', radius: 4}} 
                       />
                       <Bar dataKey="qtd" radius={[0, 4, 4, 0]} barSize={16} name="Quantidade">
                         {socio.brindes.map((entry, index) => (
@@ -201,7 +226,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* COLUNA LATERAL DIREITA: Estados + Últimos Cadastros */}
+        {/* COLUNA LATERAL DIREITA */}
         <div className="space-y-8">
             
             {/* Bloco Distribuição Geográfica (Estados) */}
@@ -224,11 +249,11 @@ export function Dashboard() {
                                 tick={{fill: '#64748b', fontWeight: 700}}
                                 interval={0} 
                             />
+                            {/* TOOLTIP UNIFICADA AQUI TAMBÉM */}
                             <Tooltip 
-                                cursor={{fill: '#f1f5f9'}}
-                                contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}}
+                                content={<CustomTooltip />} 
+                                cursor={{fill: '#f8fafc', radius: 4}} 
                             />
-                            {/* Adicionado name="Clientes" para corrigir o texto do Tooltip */}
                             <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24} fill="#6366f1" name="Clientes">
                                 <LabelList dataKey="value" position="right" style={{ fontSize: '12px', fontWeight: 'bold', fill: '#112240' }} />
                             </Bar>
