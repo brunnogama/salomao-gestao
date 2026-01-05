@@ -4,21 +4,16 @@ import { AlertCircle, RefreshCcw, ArrowRight } from 'lucide-react';
 
 export function IncompleteClients() {
   const [pendings, setPendings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const fetchPendings = async () => {
-    setLoading(true);
     const { data } = await supabase
       .from('clientes')
       .select('*')
       .or('tipo_brinde.is.null,socio.is.null,telefone.is.null');
     if (data) setPendings(data);
-    setLoading(false);
   };
 
   useEffect(() => { fetchPendings(); }, []);
-
-  if (loading) return <div className="p-10 text-center text-gray-500 font-medium">Analisando pendências...</div>;
 
   return (
     <div className="flex flex-col h-full space-y-4 animate-fadeIn">
@@ -37,7 +32,7 @@ export function IncompleteClients() {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nome do Cliente</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Faltando</th>
+              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Campos Faltantes</th>
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
