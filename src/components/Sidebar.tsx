@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react'
 import { LayoutDashboard, Users, AlertCircle, UserCircle, LogOut } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-// Interface alinhada com a chamada no App.tsx
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: any) => void;
-  userName?: string; 
+  userName?: string;
   onLogout?: () => void;
 }
 
@@ -22,7 +21,7 @@ export function Sidebar({ activeTab, setActiveTab, userName, onLogout }: Sidebar
         if (!c.nome) missing.push('Nome')
         if (!c.empresa) missing.push('Empresa')
         if (!c.cargo) missing.push('Cargo')
-        if (!c.telefone) missing.push('Telefone')
+        // Telefone removido da contagem
         if (!c.tipo_brinde) missing.push('Tipo Brinde')
         if (!c.cep) missing.push('CEP')
         if (!c.endereco) missing.push('Endereço')
@@ -33,7 +32,6 @@ export function Sidebar({ activeTab, setActiveTab, userName, onLogout }: Sidebar
         if (!c.email) missing.push('Email')
         if (!c.socio) missing.push('Sócio')
         
-        // Filtra se a pendência não foi ignorada
         return missing.filter(f => !ignored.includes(f)).length > 0
       }).length
       setIncompleteCount(count)
