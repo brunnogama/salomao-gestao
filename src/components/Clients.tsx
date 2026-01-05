@@ -142,7 +142,7 @@ Agradecemos a atenção!`;
 
     const subject = encodeURIComponent("Atualização Cadastral - Salomão Advogados");
     
-    // Texto formatado conforme solicitado
+    // CORPO DO E-MAIL ATUALIZADO
     const bodyText = `Olá Sr(a). ${client.nome}.
 
 Somos do Salomão Advogados e estamos atualizando nossa base de dados.
@@ -157,6 +157,8 @@ Poderia, por gentileza, confirmar se as informações abaixo estão corretas?
 📝 Complemento: ${client.complemento || '-'}
 📧 E-mail: ${client.email || '-'}
 📱 Outro número de telefone: (Caso possua, por favor informar)
+
+Agradecemos a atenção!
 
 Agradecemos desde já!`;
 
