@@ -9,7 +9,7 @@ import {
   LogOut,
   UserCircle,
   FileWarning,
-  X // Importante para o botão fechar no mobile
+  X 
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -17,14 +17,14 @@ interface SidebarProps {
   activePage: string;
   onNavigate: (page: string) => void;
   userName: string;
-  isOpen: boolean;     // Nova prop para mobile
-  onClose: () => void; // Nova prop para mobile
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: SidebarProps) {
   const [incompleteCount, setIncompleteCount] = useState(0)
 
-  // Lógica do Contador de Incompletos (Mantida do seu código)
+  // Lógica do Contador de Incompletos
   const fetchCount = async () => {
     const { data } = await supabase.from('clientes').select('*')
     if (data) {
@@ -56,6 +56,11 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
     const interval = setInterval(fetchCount, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    // O App.tsx vai detectar o logout e trocar para a tela de Login automaticamente
+  }
   
   // Lista Principal
   const mainItems = [
@@ -74,7 +79,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
 
   return (
     <>
-      {/* OVERLAY ESCURO (APENAS MOBILE) */}
+      {/* OVERLAY ESCURO (MOBILE) */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
@@ -82,7 +87,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
         />
       )}
 
-      {/* SIDEBAR WRAPPER (Adicionada a lógica de transform/fixed para mobile) */}
+      {/* SIDEBAR */}
       <aside className={`
         fixed md:static inset-y-0 left-0 z-50
         h-screen w-64 bg-[#112240] text-gray-300 flex flex-col font-sans border-r border-gray-800 flex-shrink-0
@@ -91,22 +96,21 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
         md:translate-x-0 shadow-2xl md:shadow-none
       `}>
       
-        {/* 1. Logo (Com botão fechar mobile adicionado) */}
+        {/* 1. Logo */}
         <div className="h-24 flex items-center justify-between px-6 bg-[#112240] flex-shrink-0">
           <img src="/logo-branca.png" alt="Salomão" className="h-12 w-auto object-contain" />
-          
-          {/* Botão X visível apenas no mobile */}
+          {/* Botão Fechar (Mobile) */}
           <button onClick={onClose} className="md:hidden p-1 hover:bg-white/10 rounded text-gray-400">
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        {/* 2. Menu Principal (Topo) - SEU ESTILO ORIGINAL RESTAURADO */}
+        {/* 2. Menu Principal (Topo) */}
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
           {mainItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => { onNavigate(item.id); onClose(); }} // Fecha ao clicar no mobile
+              onClick={() => { onNavigate(item.id); onClose(); }}
               className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all group ${
                 activePage === item.id 
                   ? 'bg-[#1e3a8a] text-white font-medium shadow-md border-l-4 border-salomao-gold' 
@@ -126,7 +130,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
           ))}
         </div>
 
-        {/* 3. Menu Inferior - SEU ESTILO ORIGINAL RESTAURADO */}
+        {/* 3. Menu Inferior */}
         <div className="pt-4 pb-2 px-3 bg-[#112240] flex-shrink-0">
           <div className="border-t border-gray-700/50 mb-4 mx-2"></div>
           {bottomItems.map((item) => (
@@ -143,7 +147,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
           ))}
         </div>
 
-        {/* 4. Rodapé do Usuário - SEU ESTILO ORIGINAL RESTAURADO */}
+        {/* 4. Rodapé do Usuário */}
         <div className="p-4 bg-[#0d1b33] flex-shrink-0">
           <div className="flex items-center justify-between rounded-lg bg-[#112240] p-3 border border-gray-800/50">
               <div className="flex items-center gap-3">
@@ -153,7 +157,7 @@ export function Sidebar({ activePage, onNavigate, userName, isOpen, onClose }: S
                   </span>
               </div>
               <button 
-                onClick={() => { supabase.auth.signOut(); window.location.reload(); }}
+                onClick={handleLogout}
                 className="text-red-500 hover:text-red-400 transition-colors p-1 hover:bg-white/5 rounded"
                 title="Sair do Sistema"
               >
