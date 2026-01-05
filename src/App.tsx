@@ -13,6 +13,9 @@ export default function App() {
   const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activePage, setActivePage] = useState('dashboard')
+  
+  // NOVO: Estado para passar filtros do Dashboard para Clientes
+  const [clientFilters, setClientFilters] = useState<{ socio?: string; brinde?: string }>({})
 
   const moduleDescriptions: Record<string, string> = {
     dashboard: 'Visão geral de performance e indicadores chave.',
@@ -23,7 +26,6 @@ export default function App() {
     historico: 'Audit Log: Rastreabilidade de ações no sistema.'
   }
 
-  // Títulos personalizados para cada página
   const pageTitles: Record<string, string> = {
     dashboard: 'Dashboard',
     clientes: 'Clientes',
@@ -49,6 +51,12 @@ export default function App() {
     return session.user.email.split('@')[0].split('.').map((p:any) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
   }
 
+  // Função para navegar com filtro (Drill-down)
+  const navigateWithFilter = (page: string, filters: { socio?: string; brinde?: string }) => {
+    setClientFilters(filters)
+    setActivePage(page)
+  }
+
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-[#112240]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>
   if (!session) return <Login />
 
@@ -58,7 +66,6 @@ export default function App() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
         <header className="bg-white border-b border-gray-200 h-20 flex items-center px-8 justify-between flex-shrink-0 z-10">
             <div className="flex flex-col justify-center">
-                {/* Título Corrigido usando o objeto pageTitles */}
                 <h1 className="text-2xl font-bold text-[#112240] capitalize leading-tight">
                     {pageTitles[activePage] || activePage}
                 </h1>
@@ -66,8 +73,12 @@ export default function App() {
             </div>
         </header>
         <div className="p-8 flex-1 overflow-hidden h-full">
-            {activePage === 'dashboard' && <Dashboard />}
-            {activePage === 'clientes' && <Clients />}
+            {/* Passando a função de navegação para o Dashboard */}
+            {activePage === 'dashboard' && <Dashboard onNavigateWithFilter={navigateWithFilter} />}
+            
+            {/* Passando os filtros iniciais para Clientes */}
+            {activePage === 'clientes' && <Clients initialFilters={clientFilters} />}
+            
             {activePage === 'incompletos' && <IncompleteClients />}
             {activePage === 'kanban' && <Kanban />}
             {activePage === 'historico' && <History />} 
