@@ -39,7 +39,7 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl w-full">
             
-            {/* CARD CRM */}
+            {/* CARD CRM (TEXTO ATUALIZADO) */}
             <div 
                 onClick={() => onSelect('crm')}
                 className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-blue-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
@@ -48,7 +48,7 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
                     <Briefcase className="h-10 w-10" />
                 </div>
                 <h2 className="text-xl font-bold text-[#112240] mb-2">CRM Jurídico</h2>
-                <p className="text-sm text-gray-500">Gestão de clientes, processos e dashboard comercial.</p>
+                <p className="text-sm text-gray-500">Gestão de clientes e controle de brindes de final de ano.</p>
             </div>
 
             {/* CARD FAMÍLIA */}
@@ -63,7 +63,7 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
                 <p className="text-sm text-gray-500">Administração patrimonial e familiar.</p>
             </div>
 
-            {/* CARD COLABORADORES */}
+            {/* CARD COLABORADORES (TEXTO ATUALIZADO) */}
             <div 
                 onClick={() => onSelect('collaborators')}
                 className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-green-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
@@ -72,7 +72,7 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
                     <Users className="h-10 w-10" />
                 </div>
                 <h2 className="text-xl font-bold text-[#112240] mb-2">Colaboradores</h2>
-                <p className="text-sm text-gray-500">Portal do time, RH e comunicação interna.</p>
+                <p className="text-sm text-gray-500">Cadastro e gestão de informações dos colaboradores.</p>
             </div>
 
         </div>
