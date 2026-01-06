@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabase'
-import { User, Lock, ArrowRight, Loader2 } from 'lucide-react'
+import { User, Lock, ArrowRight, Loader2, LayoutGrid } from 'lucide-react'
 
 export default function Login() {
   const [emailPrefix, setEmailPrefix] = useState('')
@@ -35,14 +35,13 @@ export default function Login() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-16 animate-fadeIn">
         <div className="w-full max-w-md space-y-8">
           
-          {/* Logo Corrigido */}
+          {/* Logo */}
           <div className="flex flex-col items-center mb-10">
              <img 
                src="/logo-salomao.png" 
                alt="Salomão Advogados" 
                className="h-20 w-auto object-contain mb-4 block" 
                onError={(e) => {
-                 // Fallback visual apenas se a imagem falhar mesmo com o nome certo
                  e.currentTarget.style.display = 'none';
                  const parent = e.currentTarget.parentElement;
                  if (parent) {
@@ -53,6 +52,7 @@ export default function Login() {
                  }
                }}
              />
+             <span className="text-xs font-bold tracking-[0.3em] text-gray-400 uppercase mt-2">Administrative System</span>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
@@ -117,7 +117,7 @@ export default function Login() {
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <>
-                  ACESSAR SISTEMA 
+                  ACESSAR MANAGER 
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
@@ -125,56 +125,68 @@ export default function Login() {
           </form>
 
           <p className="text-center text-xs text-gray-400 mt-8 pt-8 border-t border-gray-100">
-            © 2026 SALOMÃO ADVOGADOS • V1.4
+            © 2026 SALOMÃO ADVOGADOS • V1.5
           </p>
         </div>
       </div>
 
-      {/* LADO DIREITO - BANNER E IMAGEM */}
+      {/* LADO DIREITO - BRANDING SALOMÃO MANAGER */}
       <div className="hidden lg:flex w-1/2 relative bg-[#112240] items-center justify-center overflow-hidden">
         
-        {/* Imagem de Fundo (Escritório Moderno/Jurídico) */}
+        {/* Imagem de Fundo */}
         <div 
-            className="absolute inset-0 z-0 bg-cover bg-center opacity-40 mix-blend-overlay"
+            className="absolute inset-0 z-0 bg-cover bg-center opacity-30 mix-blend-overlay"
             style={{ 
                 backgroundImage: "url('https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2301&auto=format&fit=crop')" 
             }}
         ></div>
         
-        {/* Gradiente de Sobreposição para garantir leitura */}
+        {/* Gradiente */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#112240]/95 via-[#112240]/80 to-[#0a1525]/90 z-10"></div>
 
         {/* Conteúdo de Texto */}
         <div className="relative z-20 max-w-lg p-12 text-white animate-slideInRight">
-          <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-8 border border-blue-400/30 backdrop-blur-sm">
-            <ArrowRight className="h-6 w-6 text-blue-300" />
+          <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mb-8 border border-white/20 backdrop-blur-sm">
+            <LayoutGrid className="h-7 w-7 text-blue-300" />
           </div>
           
-          <h2 className="text-4xl font-extrabold mb-6 leading-tight tracking-tight">
-            Ecossistema de<br/>
-            <span className="text-blue-400">Gestão Integrada</span>
+          <h2 className="text-5xl font-extrabold mb-6 leading-tight tracking-tight">
+            Salomão<br/>
+            <span className="text-blue-400">Manager</span>
           </h2>
           
-          <div className="w-16 h-1 bg-blue-500 rounded-full mb-8"></div>
+          <div className="w-20 h-1.5 bg-blue-500 rounded-full mb-8"></div>
           
-          <p className="text-lg text-gray-300 mb-8 leading-relaxed font-light">
-            Acesse seus módulos em um único lugar:
+          <p className="text-xl text-gray-200 mb-2 font-medium">
+            Gestão Administrativa Centralizada
+          </p>
+          <p className="text-sm text-gray-400 mb-10 leading-relaxed max-w-sm">
+            Plataforma unificada para controle do escritório, patrimônio familiar e colaboradores.
           </p>
 
-          <ul className="space-y-4 text-gray-300">
-            <li className="flex items-center gap-3">
-                <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                <strong>CRM Jurídico:</strong> Gestão de clientes e brindes.
-            </li>
-            <li className="flex items-center gap-3">
-                <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
-                <strong>Gestão Familiar:</strong> Administração patrimonial.
-            </li>
-            <li className="flex items-center gap-3">
-                <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                <strong>Colaboradores:</strong> Portal do time e RH.
-            </li>
-          </ul>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-default">
+                <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
+                <div>
+                    <strong className="block text-sm text-white">CRM Jurídico</strong>
+                    <span className="text-xs text-gray-400">Clientes e Brindes</span>
+                </div>
+            </div>
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-default">
+                <span className="w-2 h-8 bg-purple-500 rounded-full"></span>
+                <div>
+                    <strong className="block text-sm text-white">Gestão Familiar</strong>
+                    <span className="text-xs text-gray-400">Patrimônio e Imóveis</span>
+                </div>
+            </div>
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-default">
+                <span className="w-2 h-8 bg-green-500 rounded-full"></span>
+                <div>
+                    <strong className="block text-sm text-white">Colaboradores</strong>
+                    <span className="text-xs text-gray-400">Portal de RH e Time</span>
+                </div>
+            </div>
+          </div>
         </div>
       </div>
 
