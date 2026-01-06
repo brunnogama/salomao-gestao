@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Save, Gift, Calendar, FileText } from 'lucide-react'
+import { X, Save, Gift, Calendar } from 'lucide-react'
 import { IMaskInput } from 'react-imask'
 
 export interface GiftHistoryItem {
@@ -28,7 +28,7 @@ export interface ClientData {
   socio: string;
   observacoes: string;
   ignored_fields: string[];
-  historico_brindes: GiftHistoryItem[]; // Novo Campo
+  historico_brindes: GiftHistoryItem[];
 }
 
 interface NewClientModalProps {
@@ -51,7 +51,6 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
     historico_brindes: []
   })
 
-  // Inicializa com os anos solicitados (2024, 2025) se estiver vazio
   const initializeHistory = (currentHistory: GiftHistoryItem[]) => {
     const defaultYears = ['2025', '2024'];
     let newHistory = [...(currentHistory || [])];
@@ -62,7 +61,6 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
       }
     });
 
-    // Ordena decrescente pelo ano
     return newHistory.sort((a, b) => Number(b.ano) - Number(a.ano));
   };
 
@@ -136,7 +134,6 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
             <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-xl transition-all flex flex-col max-h-[90vh]">
                 
-                {/* Header */}
                 <div className="bg-[#112240] px-6 py-4 flex justify-between items-center shrink-0">
                   <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-white">
                     {clientToEdit ? 'Editar Cliente' : 'Novo Cliente'}
@@ -144,7 +141,6 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                   <button onClick={onClose} className="text-gray-300 hover:text-white transition-colors"><X className="h-5 w-5" /></button>
                 </div>
 
-                {/* Tabs */}
                 <div className="flex border-b border-gray-200 px-6 pt-4 gap-6 shrink-0 bg-gray-50">
                     <button onClick={() => setActiveTab('geral')} className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'geral' ? 'border-[#112240] text-[#112240]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Dados Gerais</button>
                     <button onClick={() => setActiveTab('endereco')} className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'endereco' ? 'border-[#112240] text-[#112240]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Endereço</button>
@@ -153,10 +149,7 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                     </button>
                 </div>
 
-                {/* Conteúdo Scrollável */}
                 <div className="px-6 py-6 overflow-y-auto custom-scrollbar flex-1">
-                    
-                    {/* ABA GERAL */}
                     {activeTab === 'geral' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
@@ -206,7 +199,6 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                         </div>
                     )}
 
-                    {/* ABA ENDEREÇO */}
                     {activeTab === 'endereco' && (
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="md:col-span-1">
@@ -240,14 +232,12 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                         </div>
                     )}
 
-                    {/* ABA HISTÓRICO DE BRINDES (NOVA) */}
                     {activeTab === 'historico' && (
                         <div className="space-y-4">
                             <div className="flex justify-between items-center mb-4">
                                 <p className="text-sm text-gray-500">Registro anual de presentes enviados.</p>
                                 <button onClick={addHistoryYear} className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">+ Adicionar Ano Futuro</button>
                             </div>
-                            
                             <div className="space-y-3">
                                 {formData.historico_brindes.map((item, idx) => (
                                     <div key={item.ano} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
@@ -258,23 +248,11 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             <div>
                                                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tipo de Brinde</label>
-                                                <input 
-                                                    type="text" 
-                                                    value={item.tipo} 
-                                                    onChange={(e) => updateHistoryItem(idx, 'tipo', e.target.value)}
-                                                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#112240] outline-none bg-white"
-                                                    placeholder="Ex: Brinde Médio"
-                                                />
+                                                <input type="text" value={item.tipo} onChange={(e) => updateHistoryItem(idx, 'tipo', e.target.value)} className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#112240] outline-none bg-white" placeholder="Ex: Brinde Médio" />
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Observações</label>
-                                                <input 
-                                                    type="text" 
-                                                    value={item.obs} 
-                                                    onChange={(e) => updateHistoryItem(idx, 'obs', e.target.value)}
-                                                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#112240] outline-none bg-white"
-                                                    placeholder="Obs sobre o envio..."
-                                                />
+                                                <input type="text" value={item.obs} onChange={(e) => updateHistoryItem(idx, 'obs', e.target.value)} className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#112240] outline-none bg-white" placeholder="Obs sobre o envio..." />
                                             </div>
                                         </div>
                                     </div>
@@ -282,10 +260,8 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                             </div>
                         </div>
                     )}
-
                 </div>
 
-                {/* Footer */}
                 <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 shrink-0 border-t border-gray-200">
                   <button onClick={onClose} className="px-4 py-2 text-gray-700 font-bold hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
                   <button onClick={handleSave} className="px-6 py-2 bg-[#112240] text-white font-bold rounded-lg hover:bg-[#1a3a6c] transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20">
