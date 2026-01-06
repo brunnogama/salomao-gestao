@@ -1,304 +1,303 @@
-import { useState, useEffect } from 'react'
-import { X, Save, AlertCircle, Search, Loader2 } from 'lucide-react'
+import { Fragment, useState, useEffect } from 'react'
+import { Dialog, Transition } from '@headlessui/react'
+import { X, Save, Gift, Calendar, FileText } from 'lucide-react'
+import { IMaskInput } from 'react-imask'
+
+export interface GiftHistoryItem {
+  ano: string;
+  tipo: string;
+  obs: string;
+}
 
 export interface ClientData {
-  nome: string
-  empresa: string
-  cargo: string
-  telefone: string
-  tipoBrinde: string
-  outroBrinde: string
-  quantidade: number
-  cep: string
-  endereco: string
-  numero: string
-  complemento: string
-  bairro: string
-  cidade: string
-  estado: string
-  email: string
-  socio: string
-  observacoes: string
-  ignored_fields?: string[]
+  nome: string;
+  empresa: string;
+  cargo: string;
+  telefone: string;
+  tipoBrinde: string;
+  outroBrinde: string;
+  quantidade: number;
+  cep: string;
+  endereco: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  email: string;
+  socio: string;
+  observacoes: string;
+  ignored_fields: string[];
+  historico_brindes: GiftHistoryItem[]; // Novo Campo
 }
 
 interface NewClientModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (client: ClientData) => Promise<void>
-  clientToEdit?: ClientData | null
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (client: ClientData) => void;
+  clientToEdit?: ClientData | null;
 }
 
+const BRINDE_OPTIONS = ['Brinde VIP', 'Brinde Médio', 'Brinde Pequeno', 'Não Recebe', 'Outro']
+
 export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewClientModalProps) {
-  const [formData, setFormData] = useState<ClientData>({
-    nome: '', empresa: '', cargo: '', telefone: '', tipoBrinde: '', outroBrinde: '',
-    quantidade: 1, cep: '', endereco: '', numero: '', complemento: '', bairro: '',
-    cidade: '', estado: '', email: '', socio: '', observacoes: '', ignored_fields: []
-  })
+  const [activeTab, setActiveTab] = useState<'geral' | 'endereco' | 'historico'>('geral')
   
-  const [loadingCep, setLoadingCep] = useState(false)
+  const [formData, setFormData] = useState<ClientData>({
+    nome: '', empresa: '', cargo: '', telefone: '',
+    tipoBrinde: 'Brinde Médio', outroBrinde: '', quantidade: 1,
+    cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
+    email: '', socio: '', observacoes: '', ignored_fields: [],
+    historico_brindes: []
+  })
+
+  // Inicializa com os anos solicitados (2024, 2025) se estiver vazio
+  const initializeHistory = (currentHistory: GiftHistoryItem[]) => {
+    const defaultYears = ['2025', '2024'];
+    let newHistory = [...(currentHistory || [])];
+
+    defaultYears.forEach(year => {
+      if (!newHistory.find(h => h.ano === year)) {
+        newHistory.push({ ano: year, tipo: '', obs: '' });
+      }
+    });
+
+    // Ordena decrescente pelo ano
+    return newHistory.sort((a, b) => Number(b.ano) - Number(a.ano));
+  };
 
   useEffect(() => {
     if (clientToEdit) {
-      setFormData(clientToEdit)
+      setFormData({
+        ...clientToEdit,
+        historico_brindes: initializeHistory(clientToEdit.historico_brindes)
+      })
     } else {
       setFormData({
-        nome: '', empresa: '', cargo: '', telefone: '', tipoBrinde: '', outroBrinde: '',
-        quantidade: 1, cep: '', endereco: '', numero: '', complemento: '', bairro: '',
-        cidade: '', estado: '', email: '', socio: '', observacoes: '', ignored_fields: []
+        nome: '', empresa: '', cargo: '', telefone: '',
+        tipoBrinde: 'Brinde Médio', outroBrinde: '', quantidade: 1,
+        cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
+        email: '', socio: '', observacoes: '', ignored_fields: [],
+        historico_brindes: initializeHistory([])
       })
     }
+    setActiveTab('geral')
   }, [clientToEdit, isOpen])
 
-  if (!isOpen) return null
-
-  // Máscara de CEP e Atualização do State
-  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '') // Remove não números
-    
-    if (value.length > 8) value = value.slice(0, 8) // Limita a 8 dígitos
-    
-    // Aplica a máscara 00000-000
-    if (value.length > 5) {
-      value = value.replace(/^(\d{5})(\d)/, '$1-$2')
-    }
-    
-    setFormData({ ...formData, cep: value })
-  }
-
-  // Função para buscar o CEP
-  const handleSearchCep = async () => {
-    const cep = formData.cep.replace(/\D/g, '')
-
-    if (cep.length !== 8) {
-      alert('Por favor, digite um CEP válido com 8 números.')
-      return
-    }
-
-    setLoadingCep(true)
-
-    try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
-      const data = await response.json()
-
-      if (data.erro) {
-        alert('CEP não encontrado na base de dados.')
-      } else {
-        setFormData(prev => ({
-          ...prev,
-          endereco: data.logradouro,
-          bairro: data.bairro,
-          cidade: data.localidade,
-          estado: data.uf
-        }))
-      }
-    } catch (error) {
-      alert('Erro ao buscar o CEP. Verifique sua conexão.')
-      console.error(error)
-    } finally {
-      setLoadingCep(false)
-    }
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // Validação básica
-    if (!formData.nome || !formData.tipoBrinde || !formData.socio) {
-      alert('Para cadastrar, apenas Nome, Tipo de Brinde e Sócio são obrigatórios. O restante pode ser preenchido depois.')
-      return
-    }
-
-    // Validação específica para "Outro"
-    if (formData.tipoBrinde === 'Outro' && !formData.outroBrinde) {
-      alert('Por favor, especifique qual é o brinde.')
-      return
-    }
-
+  const handleSave = () => {
     onSave(formData)
+    onClose()
+  }
+
+  const handleCepBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const cep = e.target.value.replace(/\D/g, '')
+    if (cep.length === 8) {
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+        const data = await response.json()
+        if (!data.erro) {
+          setFormData(prev => ({
+            ...prev,
+            endereco: data.logradouro,
+            bairro: data.bairro,
+            cidade: data.localidade,
+            estado: data.uf
+          }))
+        }
+      } catch (error) {
+        console.error('Erro ao buscar CEP')
+      }
+    }
+  }
+
+  const updateHistoryItem = (index: number, field: keyof GiftHistoryItem, value: string) => {
+    const newHistory = [...formData.historico_brindes];
+    newHistory[index] = { ...newHistory[index], [field]: value };
+    setFormData({ ...formData, historico_brindes: newHistory });
+  }
+
+  const addHistoryYear = () => {
+    const nextYear = (new Date().getFullYear() + 1).toString();
+    setFormData(prev => ({
+        ...prev,
+        historico_brindes: [{ ano: nextYear, tipo: '', obs: '' }, ...prev.historico_brindes]
+    }));
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-scaleIn">
-        <div className="bg-[#112240] p-6 flex justify-between items-center text-white shrink-0">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            {clientToEdit ? 'Editar Cliente' : 'Novo Cliente'}
-            <span className="text-xs font-normal bg-white/20 px-2 py-1 rounded text-gray-200">
-              * Mínimo Obrigatório: Nome, Brinde, Sócio
-            </span>
-          </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="h-6 w-6" /></button>
-        </div>
+    <Transition appear show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-[100]" onClose={onClose}>
+        <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+        </Transition.Child>
 
-        <div className="flex-1 overflow-y-auto p-8">
-          <form id="client-form" onSubmit={handleSubmit} className="space-y-8">
-            {/* SEÇÃO 1: DADOS ESSENCIAIS E BRINDES */}
-            <section>
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2 mb-4 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" /> Dados Essenciais
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Nome Completo *</label>
-                  <input 
-                    type="text" 
-                    value={formData.nome} 
-                    onChange={e => setFormData({...formData, nome: e.target.value})} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] focus:border-transparent outline-none transition-all" 
-                    placeholder="Ex: João Silva" 
-                  />
-                </div>
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-xl transition-all flex flex-col max-h-[90vh]">
                 
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Sócio Responsável *</label>
-                  <select 
-                    value={formData.socio} 
-                    onChange={e => setFormData({...formData, socio: e.target.value})} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Rodrigo Salomão">Rodrigo Salomão</option>
-                    <option value="Livia Sancio">Livia Sancio</option>
-                    <option value="Rodrigo Cotta">Rodrigo Cotta</option>
-                    <option value="Luis Felipe Salomão">Luis Felipe Salomão</option>
-                    <option value="Luiz Pavan">Luiz Pavan</option>
-                    <option value="Alice Studart">Alice Studart</option>
-                  </select>
+                {/* Header */}
+                <div className="bg-[#112240] px-6 py-4 flex justify-between items-center shrink-0">
+                  <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-white">
+                    {clientToEdit ? 'Editar Cliente' : 'Novo Cliente'}
+                  </Dialog.Title>
+                  <button onClick={onClose} className="text-gray-300 hover:text-white transition-colors"><X className="h-5 w-5" /></button>
                 </div>
 
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Categoria do Brinde *</label>
-                  <select 
-                    value={formData.tipoBrinde} 
-                    onChange={e => setFormData({...formData, tipoBrinde: e.target.value})} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Brinde VIP">Brinde VIP</option>
-                    <option value="Brinde Médio">Brinde Médio</option>
-                    <option value="Outro">Outro</option>
-                  </select>
-                </div>
-
-                {formData.tipoBrinde === 'Outro' && (
-                  <div className="md:col-span-3 animate-fadeIn">
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Qual Brinde? *</label>
-                    <input 
-                      type="text" 
-                      value={formData.outroBrinde} 
-                      onChange={e => setFormData({...formData, outroBrinde: e.target.value})} 
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none bg-blue-50/50" 
-                      placeholder="Especifique o tipo de brinde..." 
-                    />
-                  </div>
-                )}
-
-                <div className="md:col-span-1">
-                   <label className="block text-sm font-bold text-gray-700 mb-1">Quantidade</label>
-                   <input 
-                    type="number" 
-                    min="1" 
-                    value={formData.quantidade} 
-                    onChange={e => setFormData({...formData, quantidade: Number(e.target.value)})} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" 
-                   />
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2 mb-4">Informações Complementares</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
-                  <input type="text" value={formData.empresa} onChange={e => setFormData({...formData, empresa: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
-                  <input type="text" value={formData.cargo} onChange={e => setFormData({...formData, cargo: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone/WhatsApp</label>
-                  <input type="text" value={formData.telefone} onChange={e => setFormData({...formData, telefone: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" placeholder="(00) 00000-0000" />
-                </div>
-                <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-                  <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" />
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2 mb-4">Endereço</h3>
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                
-                {/* CAMPO CEP COM LUPA E MÁSCARA */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      value={formData.cep} 
-                      onChange={handleCepChange} 
-                      className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none"
-                      placeholder="00000-000"
-                      maxLength={9}
-                    />
-                    <button 
-                      type="button" 
-                      onClick={handleSearchCep} 
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
-                      title="Buscar CEP"
-                      disabled={loadingCep}
-                    >
-                      {loadingCep ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                {/* Tabs */}
+                <div className="flex border-b border-gray-200 px-6 pt-4 gap-6 shrink-0 bg-gray-50">
+                    <button onClick={() => setActiveTab('geral')} className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'geral' ? 'border-[#112240] text-[#112240]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Dados Gerais</button>
+                    <button onClick={() => setActiveTab('endereco')} className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'endereco' ? 'border-[#112240] text-[#112240]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Endereço</button>
+                    <button onClick={() => setActiveTab('historico')} className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'historico' ? 'border-[#112240] text-[#112240]' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                        <Gift className="h-4 w-4" /> Histórico Brindes
                     </button>
-                  </div>
                 </div>
 
-                <div className="md:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Endereço (Rua/Av)</label>
-                  <input type="text" value={formData.endereco} onChange={e => setFormData({...formData, endereco: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" />
-                </div>
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
-                  <input type="text" value={formData.numero} onChange={e => setFormData({...formData, numero: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
-                  <input type="text" value={formData.bairro} onChange={e => setFormData({...formData, bairro: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
-                  <input type="text" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" />
-                </div>
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">UF</label>
-                  <input type="text" value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" maxLength={2} />
-                </div>
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
-                  <input type="text" value={formData.complemento} onChange={e => setFormData({...formData, complemento: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none" />
-                </div>
-              </div>
-            </section>
+                {/* Conteúdo Scrollável */}
+                <div className="px-6 py-6 overflow-y-auto custom-scrollbar flex-1">
+                    
+                    {/* ABA GERAL */}
+                    {activeTab === 'geral' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome Completo</label>
+                                <input type="text" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" placeholder="Nome do cliente" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Empresa</label>
+                                <input type="text" value={formData.empresa} onChange={e => setFormData({...formData, empresa: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cargo</label>
+                                <input type="text" value={formData.cargo} onChange={e => setFormData({...formData, cargo: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Telefone</label>
+                                <IMaskInput mask="(00) 00000-0000" value={formData.telefone} onAccept={(value: any) => setFormData({...formData, telefone: value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" placeholder="(99) 99999-9999" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">E-mail</label>
+                                <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Sócio Responsável</label>
+                                <input type="text" value={formData.socio} onChange={e => setFormData({...formData, socio: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Brinde (Atual)</label>
+                                <select value={formData.tipoBrinde} onChange={e => setFormData({...formData, tipoBrinde: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none">
+                                    {BRINDE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                            </div>
+                            {formData.tipoBrinde === 'Outro' && (
+                                <div className="md:col-span-2">
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Especifique o Brinde</label>
+                                    <input type="text" value={formData.outroBrinde} onChange={e => setFormData({...formData, outroBrinde: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Quantidade</label>
+                                <input type="number" min="1" value={formData.quantidade} onChange={e => setFormData({...formData, quantidade: parseInt(e.target.value)})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Observações Gerais</label>
+                                <textarea rows={3} value={formData.observacoes} onChange={e => setFormData({...formData, observacoes: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none resize-none"></textarea>
+                            </div>
+                        </div>
+                    )}
 
-            <section>
-               <label className="block text-sm font-bold text-gray-700 mb-1">Observações Internas</label>
-               <textarea rows={3} value={formData.observacoes} onChange={e => setFormData({...formData, observacoes: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#112240] outline-none resize-none"></textarea>
-            </section>
-          </form>
+                    {/* ABA ENDEREÇO */}
+                    {activeTab === 'endereco' && (
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="md:col-span-1">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CEP</label>
+                                <IMaskInput mask="00000-000" value={formData.cep} onAccept={(value: any) => setFormData({...formData, cep: value})} onBlur={handleCepBlur} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" placeholder="00000-000" />
+                            </div>
+                            <div className="md:col-span-3">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Endereço</label>
+                                <input type="text" value={formData.endereco} onChange={e => setFormData({...formData, endereco: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Número</label>
+                                <input type="text" value={formData.numero} onChange={e => setFormData({...formData, numero: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Complemento</label>
+                                <input type="text" value={formData.complemento} onChange={e => setFormData({...formData, complemento: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Bairro</label>
+                                <input type="text" value={formData.bairro} onChange={e => setFormData({...formData, bairro: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cidade</label>
+                                <input type="text" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">UF</label>
+                                <input type="text" maxLength={2} value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value.toUpperCase()})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ABA HISTÓRICO DE BRINDES (NOVA) */}
+                    {activeTab === 'historico' && (
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <p className="text-sm text-gray-500">Registro anual de presentes enviados.</p>
+                                <button onClick={addHistoryYear} className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">+ Adicionar Ano Futuro</button>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                {formData.historico_brindes.map((item, idx) => (
+                                    <div key={item.ano} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Calendar className="h-4 w-4 text-blue-600" />
+                                            <span className="font-bold text-[#112240] text-sm">Ano: {item.ano}</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tipo de Brinde</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={item.tipo} 
+                                                    onChange={(e) => updateHistoryItem(idx, 'tipo', e.target.value)}
+                                                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#112240] outline-none bg-white"
+                                                    placeholder="Ex: Brinde Médio"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Observações</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={item.obs} 
+                                                    onChange={(e) => updateHistoryItem(idx, 'obs', e.target.value)}
+                                                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#112240] outline-none bg-white"
+                                                    placeholder="Obs sobre o envio..."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+
+                {/* Footer */}
+                <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 shrink-0 border-t border-gray-200">
+                  <button onClick={onClose} className="px-4 py-2 text-gray-700 font-bold hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
+                  <button onClick={handleSave} className="px-6 py-2 bg-[#112240] text-white font-bold rounded-lg hover:bg-[#1a3a6c] transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20">
+                    <Save className="h-4 w-4" /> Salvar Cliente
+                  </button>
+                </div>
+
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
         </div>
-
-        <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} className="px-6 py-2.5 rounded-lg text-gray-700 font-bold hover:bg-gray-200 transition-colors">Cancelar</button>
-          <button form="client-form" type="submit" className="px-6 py-2.5 rounded-lg bg-[#112240] text-white font-bold hover:bg-[#1a3a6c] transition-all shadow-lg flex items-center gap-2">
-            <Save className="h-5 w-5" /> Salvar Cliente
-          </button>
-        </div>
-      </div>
-    </div>
+      </Dialog>
+    </Transition>
   )
 }
