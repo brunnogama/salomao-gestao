@@ -3,7 +3,6 @@ import { Users, CheckSquare, Gift, AlertTriangle, Briefcase } from 'lucide-react
 import { supabase } from '../lib/supabase'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts'
 
-// CORREÇÃO: Adicionada a interface DashboardProps
 interface DashboardProps {
   onNavigate: (filters?: { socio?: string; brinde?: string }) => void;
 }
@@ -18,15 +17,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   
   const [brindeData, setBrindeData] = useState<any[]>([])
   const [socioData, setSocioData] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  // REMOVIDO: const [loading, setLoading] = useState(true) (Não estava sendo usado)
 
   useEffect(() => {
     fetchStats()
   }, [])
 
   const fetchStats = async () => {
-    setLoading(true)
-    
     // Consultas paralelas
     const [clientes, tarefas, incompletos] = await Promise.all([
       supabase.from('clientes').select('id, tipo_brinde, socio'),
@@ -64,7 +61,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
     setBrindeData(brindeChartData)
     setSocioData(socioChartData)
-    setLoading(false)
   }
 
   const COLORS = ['#112240', '#2563eb', '#10b981', '#f59e0b', '#ef4444']
