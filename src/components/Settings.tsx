@@ -45,20 +45,6 @@ export function Settings() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const changelog = [
-    {
-        version: '1.4.0',
-        date: '07/01/2026',
-        type: 'feature',
-        title: 'Módulo Magistrados & Segurança',
-        items: [
-            'Novo módulo restrito para Magistrados.',
-            'Sistema de PIN e controle de acesso.',
-            'Auditoria visual aprimorada.'
-        ]
-    }
-  ]
-
   useEffect(() => { 
     fetchSocios();
     fetchUsers();
@@ -290,13 +276,6 @@ export function Settings() {
       setLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
-  }
-
-  const getVersionColor = (type: string) => {
-      switch(type) {
-          case 'feature': return 'bg-green-100 text-green-700 border-green-200'
-          default: return 'bg-gray-100 text-gray-700 border-gray-200'
-      }
   }
 
   return (
@@ -559,53 +538,8 @@ export function Settings() {
           </button>
       </div>
 
-      {/* --- CRÉDITOS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-gray-200">
-        
-        <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 text-[#112240]">
-                <img src="/logo-salomao.png" alt="Salomão" className="h-8 w-auto opacity-80" />
-            </div>
-            <p className="text-xs text-gray-500 leading-relaxed max-w-xs">
-                Sistema de gestão desenvolvido exclusivamente para Salomão Advogados.
-            </p>
-            <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
-                <Copyright className="h-3 w-3" /> 2025-2026
-            </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
-                <Code className="h-3 w-3" /><span>Desenvolvido por <strong>Brunno Gama</strong></span>
-            </div>
-        </div>
-
-        <div className="md:col-span-2 bg-gray-50 rounded-xl p-6 border border-gray-100">
-            <div className="flex items-center gap-2 mb-6">
-                <History className="h-4 w-4 text-gray-400" />
-                <h3 className="font-bold text-[#112240] text-lg">Histórico de Versões</h3>
-            </div>
-
-            <div className="space-y-8 relative before:absolute before:left-2.5 before:top-2 before:h-full before:w-0.5 before:bg-gray-100">
-                {changelog.map((log) => (
-                    <div key={log.version} className="relative pl-10">
-                        <div className="absolute left-0 top-1.5 h-5 w-5 rounded-full border-4 border-white bg-gray-300 shadow-sm z-10"></div>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
-                            <span className={`px-2 py-0.5 text-[10px] font-black rounded uppercase border w-fit ${getVersionColor(log.type)}`}>
-                                v{log.version}
-                            </span>
-                            <span className="text-xs text-gray-400 font-medium">{log.date}</span>
-                        </div>
-                        <h4 className="font-bold text-gray-800 text-sm mb-2">{log.title}</h4>
-                        <ul className="space-y-1">
-                            {log.items.map((item, idx) => (
-                                <li key={idx} className="text-xs text-gray-500 flex items-start gap-2">
-                                    <span className="mt-1.5 h-1 w-1 rounded-full bg-gray-400 flex-shrink-0"></span>
-                                    {item}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ))}
-            </div>
-        </div>
+      {/* --- SEÇÃO DE CRÉDITOS --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
         {/* SEÇÃO DE CRÉDITOS */}
         <div className="md:col-span-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm">
