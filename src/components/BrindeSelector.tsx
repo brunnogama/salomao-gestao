@@ -166,14 +166,14 @@ export function BrindeSelector({ value, onChange }: BrindeSelectorProps) {
                   >
                     <button
                       onClick={() => onChange(brinde.nome)}
-                      className="flex-1 text-left flex items-center gap-2"
+                      className="flex-1 text-left flex items-center"
                     >
-                      {value === brinde.nome && (
-                        <Check className="h-4 w-4 text-blue-600" />
-                      )}
                       <span className="text-gray-700">
                         {brinde.nome}
                       </span>
+                      {value === brinde.nome && (
+                        <Check className="h-4 w-4 ml-2 text-blue-600" />
+                      )}
                     </button>
 
                     {/* Botões de Editar/Excluir (aparecem no hover) */}
