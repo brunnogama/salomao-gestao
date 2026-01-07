@@ -509,9 +509,6 @@ Equipe Salomão Advogados`)
                             onClick={() => openEditModal(client)} 
                             className="bg-white rounded-2xl shadow-sm border border-gray-200 p-3.5 hover:shadow-xl hover:border-blue-200 transition-all duration-300 relative group cursor-pointer animate-fadeIn flex flex-col justify-between overflow-hidden"
                         >
-                            {/* Barra lateral colorida de acordo com o brinde */}
-                            <div className={`absolute left-0 top-0 w-1 h-full ${colors.bar}`}></div>
-
                             {/* Header do Card */}
                             <div className="flex items-start justify-between mb-2.5">
                                 <div className="flex gap-2.5 overflow-hidden flex-1">
@@ -524,10 +521,6 @@ Equipe Salomão Advogados`)
                                         <h3 className="text-sm font-black text-gray-900 truncate leading-tight" title={client.nome}>
                                             {client.nome}
                                         </h3>
-                                        <div className="flex items-center gap-1.5 text-xs text-gray-500 truncate mt-0.5">
-                                            <Briefcase className="h-3 w-3 flex-shrink-0" />
-                                            <span className="truncate">{client.empresa || 'Sem empresa'}</span>
-                                        </div>
                                     </div>
                                 </div>
                                 
@@ -557,7 +550,7 @@ Equipe Salomão Advogados`)
                                     </div>
                                 </div>
 
-                                {/* Empresa com mesmo destaque do Sócio */}
+                                {/* Empresa */}
                                 <div className="bg-gradient-to-r from-purple-50 to-purple-50/50 rounded-lg p-2 border border-purple-100">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-1.5 text-xs text-purple-700">
@@ -569,21 +562,6 @@ Equipe Salomão Advogados`)
                                         <span className="font-bold text-purple-900 text-xs truncate ml-2 max-w-[140px]" title={client.empresa}>
                                             {client.empresa || '-'}
                                         </span>
-                                    </div>
-                                </div>
-
-                                {/* Brinde info */}
-                                <div className="bg-gradient-to-r from-amber-50 to-amber-50/50 rounded-lg p-2 border border-amber-100">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5 text-xs text-amber-700">
-                                            <Gift className="h-3.5 w-3.5" />
-                                            <span className="font-medium">{client.tipo_brinde}</span>
-                                        </div>
-                                        {client.tipo_brinde !== 'Não Recebe' && (
-                                            <span className="bg-amber-100 text-amber-800 text-xs font-black px-2 py-0.5 rounded-md">
-                                                {client.quantidade}x
-                                            </span>
-                                        )}
                                     </div>
                                 </div>
                             </div>
