@@ -154,47 +154,67 @@ export function Dashboard({ onNavigateWithFilter }: DashboardProps) {
   return (
     <div className="h-full overflow-y-auto pr-2 custom-scrollbar space-y-8 pb-10">
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4 relative overflow-hidden group">
+      {/* CARDS DE MÉTRICAS - LINHA ÚNICA */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        
+        {/* Card Total Geral (Clientes) */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col gap-2 relative overflow-hidden group">
             <div className="absolute right-0 top-0 h-full w-1 bg-blue-600"></div>
-            <div className="p-3 bg-blue-50 rounded-xl text-blue-700 group-hover:scale-110 transition-transform">
-              <Award className="h-8 w-8" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Total Geral</p>
-              <p className="text-3xl font-black text-[#112240]">{stats.totalClients}</p>
-            </div>
-        </div>
-
-        <div 
-          className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4 relative overflow-hidden group cursor-pointer hover:border-amber-300 transition-colors"
-          onClick={() => onNavigateWithFilter('magistrados', {})}
-        >
-            <div className="absolute right-0 top-0 h-full w-1 bg-amber-600"></div>
-            <div className="p-3 bg-amber-50 rounded-xl text-amber-700 group-hover:scale-110 transition-transform">
-              <Gavel className="h-8 w-8" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Magistrados</p>
-              <p className="text-3xl font-black text-[#112240]">{stats.totalMagistrados}</p>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-blue-50 rounded-lg text-blue-700">
+                <Award className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Clientes</p>
+                <p className="text-2xl font-black text-[#112240] leading-none">{stats.totalClients}</p>
+              </div>
             </div>
         </div>
 
+        {/* Cards de Brindes */}
         {Object.entries(stats.brindeCounts).map(([tipo, qtd]) => (
           <div 
             key={tipo} 
             onClick={() => onNavigateWithFilter('clientes', { brinde: tipo })}
-            className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4 cursor-pointer hover:border-blue-300 transition-colors"
+            className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col gap-2 cursor-pointer hover:border-blue-300 transition-colors"
           >
-            <div className="p-3 rounded-xl" style={{ backgroundColor: `${getBrindeColor(tipo)}15`, color: getBrindeColor(tipo) }}>
-              <Gift className="h-8 w-8" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">{tipo}</p>
-              <p className="text-3xl font-black text-[#112240]">{qtd}</p>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${getBrindeColor(tipo)}15`, color: getBrindeColor(tipo) }}>
+                <Gift className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide line-clamp-1">{tipo}</p>
+                <p className="text-2xl font-black text-[#112240] leading-none">{qtd}</p>
+              </div>
             </div>
           </div>
         ))}
+
+        {/* Separador Visual */}
+        <div className="hidden lg:flex items-center justify-center">
+          <div className="h-16 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent"></div>
+        </div>
+
+        {/* Card Magistrados (Separado) */}
+        <div 
+          className="bg-gradient-to-br from-amber-50 to-white p-4 rounded-xl shadow-sm border-2 border-amber-200 flex flex-col gap-2 cursor-pointer hover:border-amber-400 transition-all group relative overflow-hidden"
+          onClick={() => onNavigateWithFilter('magistrados', {})}
+        >
+            <div className="absolute right-0 top-0 h-full w-1 bg-amber-600"></div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-amber-100 rounded-lg text-amber-700 group-hover:scale-110 transition-transform">
+                <Gavel className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">Magistrados</p>
+                <p className="text-2xl font-black text-amber-900 leading-none">{stats.totalMagistrados}</p>
+              </div>
+            </div>
+            <div className="absolute bottom-1 right-2 text-[8px] text-amber-600/60 font-bold">
+              ÁREA RESTRITA
+            </div>
+        </div>
+
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
