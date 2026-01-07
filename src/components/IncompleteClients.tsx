@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { CheckCircle, Pencil, XCircle, Search, X } from 'lucide-react'
+import { 
+  CheckCircle, Pencil, XCircle, Search, X, 
+  Filter, ArrowUpDown, Check 
+} from 'lucide-react'
+import { Menu, Transition } from '@headlessui/react'
+import { Fragment } from 'react'
 import { NewClientModal, ClientData } from './NewClientModal'
 
 export function IncompleteClients() {
@@ -9,9 +14,16 @@ export function IncompleteClients() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [clientToEdit, setClientToEdit] = useState<ClientData | null>(null)
   
-  // --- ESTADOS DE BUSCA ---
+  // --- ESTADOS DE BUSCA E FILTRO ---
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  
+  const [filterSocio, setFilterSocio] = useState<string>('')
+  const [filterBrinde, setFilterBrinde] = useState<string>('')
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'az' | 'za'>('newest')
+
+  const [availableSocios, setAvailableSocios] = useState<string[]>([])
+  const [availableBrindes, setAvailableBrindes] = useState<string[]>([])
 
   // Campos obrigatórios
   const REQUIRED_FIELDS = [
@@ -48,6 +60,12 @@ export function IncompleteClients() {
         return hasMissing
       })
       setClients(incomplete)
+
+      // Extrai listas únicas baseadas APENAS nos clientes incompletos
+      const socios = Array.from(new Set(incomplete.map((c: any) => c.socio).filter(Boolean))) as string[]
+      const brindes = Array.from(new Set(incomplete.map((c: any) => c.tipo_brinde).filter(Boolean))) as string[]
+      setAvailableSocios(socios.sort())
+      setAvailableBrindes(brindes.sort())
     }
     setLoading(false)
   }
@@ -55,6 +73,41 @@ export function IncompleteClients() {
   useEffect(() => {
     fetchIncompleteClients()
   }, [])
+
+  // --- LÓGICA CENTRAL DE FILTRAGEM ---
+  const processedClients = useMemo(() => {
+    let result = [...clients]
+
+    // 1. Busca por Texto
+    if (searchTerm) {
+        const lowerTerm = searchTerm.toLowerCase()
+        result = result.filter(c => 
+            (c.nome?.toLowerCase() || '').includes(lowerTerm) ||
+            (c.empresa?.toLowerCase() || '').includes(lowerTerm) ||
+            (c.email?.toLowerCase() || '').includes(lowerTerm) ||
+            (c.socio?.toLowerCase() || '').includes(lowerTerm)
+        )
+    }
+
+    // 2. Filtros Específicos
+    if (filterSocio) {
+        result = result.filter(c => c.socio === filterSocio)
+    }
+    if (filterBrinde) {
+        result = result.filter(c => c.tipo_brinde === filterBrinde)
+    }
+
+    // 3. Ordenação (Assumindo que há created_at, senão usa nome como fallback)
+    result.sort((a: any, b: any) => {
+        if (sortOrder === 'newest') return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+        if (sortOrder === 'oldest') return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+        if (sortOrder === 'az') return (a.nome || '').localeCompare(b.nome || '')
+        if (sortOrder === 'za') return (b.nome || '').localeCompare(a.nome || '')
+        return 0
+    })
+
+    return result
+  }, [clients, searchTerm, filterSocio, filterBrinde, sortOrder])
 
   const handleEdit = (client: ClientData) => {
     setClientToEdit(client)
@@ -96,19 +149,6 @@ export function IncompleteClients() {
     if (!error) fetchIncompleteClients();
   }
 
-  // --- LÓGICA DE FILTRAGEM ---
-  const filteredClients = clients.filter(client => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    
-    return (
-        (client.nome?.toLowerCase() || '').includes(searchLower) ||
-        (client.empresa?.toLowerCase() || '').includes(searchLower) ||
-        (client.email?.toLowerCase() || '').includes(searchLower) ||
-        (client.socio?.toLowerCase() || '').includes(searchLower)
-    );
-  });
-
   if (loading) return (
     <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#112240]"></div>
@@ -118,19 +158,89 @@ export function IncompleteClients() {
   return (
     <div className="space-y-6">
       
-      {/* HEADER UNIFICADO (Sem título duplicado) */}
+      {/* HEADER + FERRAMENTAS */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
+        
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
             
             {/* Lado Esquerdo: Contador */}
             <div className="pl-2">
                 <p className="text-sm font-medium text-gray-500">
-                    <span className="font-bold text-red-600">{filteredClients.length}</span> cadastros com pendências
+                    <span className="font-bold text-red-600">{processedClients.length}</span> cadastros com pendências
                 </p>
             </div>
             
-            {/* Lado Direito: Ações */}
-            <div className="flex items-center gap-2">
+            {/* Lado Direito: Filtros, Ordenação e Ações */}
+            <div className="flex flex-wrap items-center gap-2">
+                
+                {/* Ícone de Filtro */}
+                <div className="flex items-center gap-1 text-gray-400 mr-1 hidden sm:flex">
+                    <Filter className="h-4 w-4" />
+                </div>
+
+                {/* Filtro Sócio */}
+                <div className="relative">
+                    <select 
+                        value={filterSocio}
+                        onChange={(e) => setFilterSocio(e.target.value)}
+                        className={`appearance-none pl-3 pr-8 py-2 rounded-lg text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors cursor-pointer
+                            ${filterSocio ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
+                    >
+                        <option value="">Todos os Sócios</option>
+                        {availableSocios.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
+
+                {/* Filtro Brinde */}
+                <div className="relative">
+                    <select 
+                        value={filterBrinde}
+                        onChange={(e) => setFilterBrinde(e.target.value)}
+                        className={`appearance-none pl-3 pr-8 py-2 rounded-lg text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors cursor-pointer
+                            ${filterBrinde ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
+                    >
+                        <option value="">Todos os Brindes</option>
+                        {availableBrindes.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                </div>
+
+                {/* Ordenação */}
+                <Menu as="div" className="relative">
+                    <Menu.Button className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:text-[#112240] hover:bg-gray-100 transition-colors">
+                        <ArrowUpDown className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">
+                            {sortOrder === 'newest' ? 'Recentes' : sortOrder === 'oldest' ? 'Antigos' : 'Nome'}
+                        </span>
+                    </Menu.Button>
+                    <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="transform opacity-0 scale-95" enterTo="transform opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="transform opacity-100 scale-100" leaveTo="transform opacity-0 scale-95">
+                        <Menu.Items className="absolute right-0 mt-1 w-40 origin-top-right rounded-lg bg-white shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
+                            <div className="p-1">
+                                {[
+                                    { id: 'newest', label: 'Mais Recentes' },
+                                    { id: 'oldest', label: 'Mais Antigos' },
+                                    { id: 'az', label: 'Nome (A-Z)' },
+                                    { id: 'za', label: 'Nome (Z-A)' }
+                                ].map((opt) => (
+                                    <Menu.Item key={opt.id}>
+                                        {({ active }) => (
+                                            <button 
+                                                onClick={() => setSortOrder(opt.id as any)}
+                                                className={`${active ? 'bg-gray-50' : ''} group flex w-full items-center justify-between px-3 py-2 text-xs text-gray-700 rounded-md`}
+                                            >
+                                                {opt.label}
+                                                {sortOrder === opt.id && <Check className="h-3 w-3 text-blue-600" />}
+                                            </button>
+                                        )}
+                                    </Menu.Item>
+                                ))}
+                            </div>
+                        </Menu.Items>
+                    </Transition>
+                </Menu>
+
+                <div className="h-6 w-px bg-gray-200 mx-1"></div>
+
+                {/* Botão Busca */}
                 <button 
                     onClick={() => {
                         setIsSearchOpen(!isSearchOpen);
@@ -144,7 +254,7 @@ export function IncompleteClients() {
             </div>
         </div>
 
-        {/* INPUT DESLIZANTE */}
+        {/* Busca Deslizante */}
         <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isSearchOpen ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -161,16 +271,24 @@ export function IncompleteClients() {
       </div>
 
       {/* LISTAGEM */}
-      {filteredClients.length === 0 ? (
+      {processedClients.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-gray-400 bg-white rounded-xl border border-dashed border-gray-300">
             <CheckCircle className="h-10 w-10 mb-2 text-green-500" />
             <p className="font-medium">
-                {searchTerm ? 'Nenhuma pendência encontrada com este termo.' : 'Tudo certo! Nenhum cadastro pendente.'}
+                {searchTerm || filterSocio || filterBrinde ? 'Nenhuma pendência encontrada com estes filtros.' : 'Tudo certo! Nenhum cadastro pendente.'}
             </p>
+            {(searchTerm || filterSocio || filterBrinde) && (
+                <button 
+                    onClick={() => {setSearchTerm(''); setFilterBrinde(''); setFilterSocio('');}}
+                    className="mt-2 text-blue-600 text-sm font-bold hover:underline"
+                >
+                    Limpar filtros
+                </button>
+            )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-            {filteredClients.map((client: any) => {
+            {processedClients.map((client: any) => {
                 const missing = REQUIRED_FIELDS
                     .filter(f => (!client[f.key] && !(client.ignored_fields || []).includes(f.label)))
                     .map(f => f.label)
