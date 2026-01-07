@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { 
   Download, Upload, FileSpreadsheet, CheckCircle, AlertCircle, 
-  Users, Pencil, Trash2, Save, X, RefreshCw, 
-  AlertTriangle, History, Code, Building, User, Copyright,
+  Users, Pencil, Trash2, Save, RefreshCw, 
+  AlertTriangle, History, Building, Copyright,
   Shield, UserPlus, Ban, Check, Lock
 } from 'lucide-react'
 import { utils, read, writeFile } from 'xlsx'
@@ -119,8 +119,6 @@ export function Settings() {
 
   const fetchUsers = async () => {
     setLoadingUsers(true)
-    // Simulação: Em produção real, buscaria da tabela 'profiles' ou API de Admin do Supabase
-    // Como estamos usando public.users ou similar, vamos adaptar:
     const { data } = await supabase.from('usuarios_permitidos').select('*')
     if (data) {
         setUsers(data.map((u: any) => ({
@@ -330,7 +328,6 @@ export function Settings() {
       setStatus({ type: 'success', message: `${clientsToInsert.length} clientes importados com sucesso!` })
       await logAction('IMPORTAR', 'SISTEMA', `Importou ${clientsToInsert.length} clientes via Excel`)
       
-      // Refresh socios
       fetchSocios()
 
     } catch (error: any) {
@@ -512,7 +509,7 @@ export function Settings() {
                                         autoFocus
                                         className="text-sm font-bold bg-white border border-purple-300 rounded px-2 py-0.5 w-full outline-none"
                                         defaultValue={socio.nome}
-                                        onBlur={(e) => handleUpdateSocio(socio.nome)} // Cancela se clicar fora sem mudar
+                                        onBlur={() => handleUpdateSocio(socio.nome)} // Correção aqui
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 setNewSocioName(e.currentTarget.value)
