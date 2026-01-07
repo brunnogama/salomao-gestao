@@ -39,7 +39,7 @@ export function Settings() {
   const [editingUser, setEditingUser] = useState<AppUser | null>(null)
   const [userForm, setUserForm] = useState({ nome: '', email: '', cargo: 'Colaborador' })
 
-  // --- GESTÃO MAGISTRADOS (NOVO) ---
+  // --- GESTÃO MAGISTRADOS ---
   const [magistradosConfig, setMagistradosConfig] = useState({ pin: '', emails: '' })
   const [loadingConfig, setLoadingConfig] = useState(false)
 
@@ -250,18 +250,29 @@ export function Settings() {
     }
   }
 
-  // --- ACTIONS: SYSTEM ---
+  // --- ACTIONS: SYSTEM (RESET) CORRIGIDO ---
 
   const handleSystemReset = async () => {
+    // Confirmação dupla para segurança
     if (confirm('PERIGO: Isso apagará TODOS os clientes do banco de dados. Tem certeza absoluta? Digite "APAGAR" para confirmar.') === true) {
         const confirmText = prompt('Digite APAGAR para confirmar a exclusão total:')
+        
         if (confirmText === 'APAGAR') {
             setLoading(true)
-            const { error } = await supabase.from('clientes').delete().neq('id', 0)
+            setStatus({ type: null, message: 'Resetando...' })
+
+            // Importante: Deletar sem WHERE pode ser bloqueado se não tiver política.
+            // Usamos neq('id', -1) como um truque para selecionar "todos" de forma segura.
+            const { error } = await supabase.from('clientes').delete().neq('id', -1)
+            
             if (!error) {
                 setStatus({ type: 'success', message: 'Sistema resetado com sucesso.' })
                 await logAction('RESET', 'SISTEMA', 'Resetou banco de dados')
+                
+                // Atualiza contadores
+                fetchSocios()
             } else {
+                console.error("Erro no reset:", error)
                 setStatus({ type: 'error', message: 'Erro ao resetar: ' + error.message })
             }
             setLoading(false)
@@ -595,30 +606,20 @@ export function Settings() {
           </button>
       </div>
 
-      {/* --- CRÉDITOS, VERSÃO E RODAPÉ (RESTAURADO) --- */}
+      {/* --- CRÉDITOS & VERSÃO --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-gray-200">
         
         {/* LOGO & DIREITOS */}
-        <div className="flex flex-col justify-between gap-4 h-full">
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 text-[#112240]">
-                    <img src="/logo-salomao.png" alt="Salomão" className="h-8 w-auto opacity-80" />
-                </div>
-                <p className="text-xs text-gray-500 leading-relaxed max-w-xs">
-                    Sistema de gestão desenvolvido exclusivamente para Salomão Advogados.
-                </p>
+        <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 text-[#112240]">
+                <img src="/logo-salomao.png" alt="Salomão" className="h-8 w-auto opacity-80" />
             </div>
-            
-            {/* RODAPÉ COM ÍCONES RESTAURADOS */}
-            <div className="flex flex-col gap-2 mt-auto">
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
-                    <Copyright className="h-3 w-3" /> 
-                    <span>{new Date().getFullYear()} Todos os direitos reservados.</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
-                     <Code className="h-3 w-3" />
-                     <span>Desenvolvido por <strong>Brunno Gama</strong></span>
-                </div>
+            <p className="text-xs text-gray-500 leading-relaxed max-w-xs">
+                Sistema de gestão desenvolvido exclusivamente para Salomão Advogados.
+                Todos os direitos reservados.
+            </p>
+            <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+                <Copyright className="h-3 w-3" /> 2024-2026
             </div>
         </div>
 
