@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { X, Save, Gift, Calendar } from 'lucide-react'
+import { X, Save, Gift, Calendar, Clock, UserCircle } from 'lucide-react'
 import { IMaskInput } from 'react-imask'
 
 export interface GiftHistoryItem {
@@ -9,15 +9,14 @@ export interface GiftHistoryItem {
   obs: string;
 }
 
-// CORREÇÃO: Propriedades renomeadas para snake_case para bater com o Banco de Dados
 export interface ClientData {
   id?: number;
   nome: string;
   empresa: string;
   cargo: string;
   telefone: string;
-  tipo_brinde: string; // Antes: tipoBrinde
-  outro_brinde: string; // Antes: outroBrinde
+  tipo_brinde: string;
+  outro_brinde: string;
   quantidade: number;
   cep: string;
   endereco: string;
@@ -31,6 +30,11 @@ export interface ClientData {
   observacoes: string;
   ignored_fields?: string[] | null;
   historico_brindes?: GiftHistoryItem[] | null;
+  // --- CAMPOS DE AUDITORIA ---
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  updated_by?: string;
 }
 
 interface NewClientModalProps {
@@ -45,7 +49,6 @@ const BRINDE_OPTIONS = ['Brinde VIP', 'Brinde Médio', 'Brinde Pequeno', 'Não R
 export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewClientModalProps) {
   const [activeTab, setActiveTab] = useState<'geral' | 'endereco' | 'historico'>('geral')
   
-  // Estado inicial atualizado com snake_case
   const [formData, setFormData] = useState<ClientData>({
     nome: '', empresa: '', cargo: '', telefone: '',
     tipo_brinde: 'Brinde Médio', outro_brinde: '', quantidade: 1,
@@ -142,6 +145,19 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
             ...(prev.historico_brindes || [])
         ].sort((a, b) => Number(b.ano) - Number(a.ano))
     }));
+  }
+
+  // --- Função para Formatar Data e Hora ---
+  const formatAuditDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    try {
+        return new Date(dateString).toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+        });
+    } catch (e) {
+        return dateString;
+    }
   }
 
   return (
@@ -293,11 +309,40 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                     )}
                 </div>
 
-                <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 shrink-0 border-t border-gray-200">
-                  <button onClick={onClose} className="px-4 py-2 text-gray-700 font-bold hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
-                  <button onClick={handleSave} className="px-6 py-2 bg-[#112240] text-white font-bold rounded-lg hover:bg-[#1a3a6c] transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20">
-                    <Save className="h-4 w-4" /> Salvar Cliente
-                  </button>
+                {/* --- FOOTER UNIFICADO COM AÇÕES E AUDITORIA --- */}
+                <div className="bg-gray-50 border-t border-gray-200 shrink-0">
+                  
+                  {/* Seção de Auditoria Visual (Só aparece se for edição) */}
+                  {clientToEdit && (
+                    <div className="px-6 py-2 bg-gray-100 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] text-gray-500">
+                      <div className="flex items-center gap-1.5" title="Data de Criação">
+                        <Clock className="h-3 w-3" />
+                        <span>Criado em <strong>{formatAuditDate(formData.created_at)}</strong></span>
+                        {formData.created_by && (
+                           <span className="flex items-center gap-1 ml-1 border-l border-gray-300 pl-2">
+                             <UserCircle className="h-3 w-3" /> por {formData.created_by}
+                           </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-1.5" title="Última Edição">
+                        <Save className="h-3 w-3" />
+                        <span>Editado em <strong>{formatAuditDate(formData.updated_at)}</strong></span>
+                        {formData.updated_by && (
+                           <span className="flex items-center gap-1 ml-1 border-l border-gray-300 pl-2">
+                             <UserCircle className="h-3 w-3" /> por {formData.updated_by}
+                           </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="px-6 py-4 flex justify-end gap-3">
+                    <button onClick={onClose} className="px-4 py-2 text-gray-700 font-bold hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
+                    <button onClick={handleSave} className="px-6 py-2 bg-[#112240] text-white font-bold rounded-lg hover:bg-[#1a3a6c] transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20">
+                      <Save className="h-4 w-4" /> Salvar Cliente
+                    </button>
+                  </div>
                 </div>
 
               </Dialog.Panel>

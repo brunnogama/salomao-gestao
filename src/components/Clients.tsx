@@ -38,7 +38,7 @@ export function Clients({ initialFilters }: ClientsProps) {
     
     const { data, error } = await query
     if (!error && data) {
-        // Mapeamento explícito para garantir compatibilidade
+        // Mapeamento explícito incluindo auditoria
         const formattedClients: ClientData[] = data.map((item: any) => ({
             id: item.id,
             nome: item.nome,
@@ -59,7 +59,12 @@ export function Clients({ initialFilters }: ClientsProps) {
             socio: item.socio,
             observacoes: item.observacoes,
             ignored_fields: item.ignored_fields,
-            historico_brindes: item.historico_brindes
+            historico_brindes: item.historico_brindes,
+            // NOVOS CAMPOS AUDITORIA
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            created_by: item.created_by,
+            updated_by: item.updated_by
         }))
 
         setClients(formattedClients)
@@ -110,7 +115,11 @@ export function Clients({ initialFilters }: ClientsProps) {
   }, [clients, searchTerm, filterSocio, filterBrinde, sortOrder])
 
   const handleSave = async (client: ClientData) => {
-    const dbData = {
+    // Captura o usuário atual para auditoria
+    const { data: { user } } = await supabase.auth.getUser();
+    const userEmail = user?.email || 'Sistema';
+
+    const dbData: any = {
         nome: client.nome,
         empresa: client.empresa,
         cargo: client.cargo,
@@ -129,15 +138,22 @@ export function Clients({ initialFilters }: ClientsProps) {
         socio: client.socio,
         observacoes: client.observacoes,
         ignored_fields: client.ignored_fields,
-        historico_brindes: client.historico_brindes
+        historico_brindes: client.historico_brindes,
+        // Auditoria: Sempre atualiza quem editou por último
+        updated_by: userEmail,
+        updated_at: new Date().toISOString()
     }
 
     try {
         if (clientToEdit && clientToEdit.id) {
+            // EDITAR
             const { error } = await supabase.from('clientes').update(dbData).eq('id', clientToEdit.id)
             if (error) throw error
             await logAction('EDITAR', 'CLIENTES', `Atualizou: ${client.nome}`)
         } else {
+            // CRIAR: Adiciona o criador
+            dbData.created_by = userEmail;
+            
             const { error } = await supabase.from('clientes').insert([dbData])
             if (error) throw error
             await logAction('CRIAR', 'CLIENTES', `Criou: ${client.nome}`)
@@ -199,7 +215,6 @@ export function Clients({ initialFilters }: ClientsProps) {
     window.location.href = `mailto:${client.email}?subject=${subject}&body=${body}`;
   }
 
-  // --- EXPORTAR EXCEL ---
   const handleExportExcel = async () => {
     const ws = utils.json_to_sheet(processedClients)
     const wb = utils.book_new()
@@ -208,7 +223,6 @@ export function Clients({ initialFilters }: ClientsProps) {
     await logAction('EXPORTAR', 'CLIENTES', `Exportou ${processedClients.length} clientes`)
   }
 
-  // --- IMPRESSÃO ---
   const handlePrintList = () => {
     if (processedClients.length === 0) return alert("Lista vazia.")
     const printWindow = window.open('', '', 'width=900,height=800');
@@ -363,14 +377,12 @@ export function Clients({ initialFilters }: ClientsProps) {
 
       </div>
 
-      {/* ÁREA DE ROLAGEM E GRD (4 COLUNAS - LAYOUT DETALHADO) */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 pb-4">
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {processedClients.map((client) => (
                 <div key={client.id || client.email} onClick={() => openEditModal(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all relative group cursor-pointer animate-fadeIn flex flex-col justify-between h-full">
                     
-                    {/* CABEÇALHO DO CARD */}
                     <div className="flex items-start justify-between mb-2">
                         <div className="flex gap-3 overflow-hidden">
                             <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-[#112240] font-bold border border-gray-200 flex-shrink-0">
@@ -390,7 +402,6 @@ export function Clients({ initialFilters }: ClientsProps) {
                         </span>
                     </div>
                     
-                    {/* CORPO DO CARD - DESIGN DETALHADO */}
                     <div className="bg-gray-50 rounded-md p-2.5 mb-3 text-xs space-y-2 border border-gray-100">
                         <div className="flex justify-between items-center border-b border-gray-200 pb-1.5">
                             <div className="flex items-center gap-1.5 text-gray-500">
@@ -427,7 +438,6 @@ export function Clients({ initialFilters }: ClientsProps) {
                         </div>
                     </div>
 
-                    {/* RODAPÉ DO CARD - BOTÕES DE AÇÃO */}
                     <div className="border-t border-gray-100 pt-3 flex justify-between items-center mt-auto">
                         <div className="flex gap-2">
                             {client.telefone && (
