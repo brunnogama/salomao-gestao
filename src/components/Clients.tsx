@@ -20,11 +20,10 @@ interface ClientsProps {
 export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps) {
   const [clients, setClients] = useState<ClientData[]>([])
   const [loading, setLoading] = useState(true)
-  const [importing, setImporting] = useState(false) // Estado para loading da importação
+  const [importing, setImporting] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [clientToEdit, setClientToEdit] = useState<ClientData | null>(null)
   
-  // Ref para o input de arquivo invisível
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   // --- ESTADOS DE BUSCA E FILTRO ---
@@ -118,7 +117,39 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
     return result
   }, [clients, searchTerm, filterSocio, filterBrinde, sortOrder])
 
-  // --- IMPORTAÇÃO DE EXCEL ---
+  // --- FUNÇÃO DE EXCLUSÃO CORRIGIDA ---
+  const handleDelete = async (client: ClientData) => {
+    if (!client.id) {
+        alert("Erro: ID do registro não encontrado.");
+        return;
+    }
+
+    if (confirm(`Tem certeza que deseja excluir permanentemente: ${client.nome}?`)) {
+        try {
+            // Tenta excluir
+            const { error } = await supabase.from(tableName).delete().eq('id', client.id)
+            
+            if (error) {
+                console.error("Erro Supabase:", error);
+                throw new Error(error.message); // Lança erro para o catch
+            }
+
+            // Se sucesso
+            await logAction('EXCLUIR', tableName.toUpperCase(), `Excluiu: ${client.nome}`)
+            
+            // Atualiza a lista localmente para feedback instantâneo (opcional, mas bom pra UX)
+            setClients(prev => prev.filter(c => c.id !== client.id));
+            
+            // Recarrega do banco para garantir
+            fetchClients()
+
+        } catch (error: any) {
+            console.error('Erro ao excluir:', error)
+            alert(`Falha ao excluir. Verifique suas permissões.\nDetalhe: ${error.message || error}`)
+        }
+    }
+  }
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -138,7 +169,6 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
 
       if (jsonData.length === 0) throw new Error('Arquivo vazio')
 
-      // Mapeia os dados do Excel para o formato do banco
       const { data: { user } } = await supabase.auth.getUser();
       const userEmail = user?.email || 'Importação';
 
@@ -225,16 +255,6 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
     } catch (error: any) {
         console.error('Erro ao salvar:', error)
         alert(`Erro ao salvar: ${error.message}`)
-    }
-  }
-
-  const handleDelete = async (client: ClientData) => {
-    if (confirm(`Tem certeza que deseja excluir ${client.nome}?`)) {
-        const { error } = await supabase.from(tableName).delete().eq('id', client.id)
-        if (!error) {
-            await logAction('EXCLUIR', tableName.toUpperCase(), `Excluiu: ${client.nome}`)
-            fetchClients()
-        }
     }
   }
 
@@ -434,6 +454,7 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
                         </div>
                         <div className="flex gap-1">
                             <button onClick={(e) => { e.stopPropagation(); openEditModal(client); }} className="p-1.5 text-gray-400 hover:text-[#112240] hover:bg-gray-100 rounded-md transition-colors" title="Editar"><Pencil className="h-3.5 w-3.5" /></button>
+                            {/* CORREÇÃO DO BOTÃO DE EXCLUIR */}
                             <button onClick={(e) => { e.stopPropagation(); handleDelete(client); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                     </div>
