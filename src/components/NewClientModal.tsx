@@ -2,7 +2,7 @@ import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { X, Save, Gift, Calendar, Clock, UserCircle } from 'lucide-react'
 import { IMaskInput } from 'react-imask'
-import { SocioSelector } from './SocioSelector'
+import { BrindeSelector } from './BrindeSelector'
 
 export interface GiftHistoryItem {
   ano: string;
@@ -45,18 +45,39 @@ interface NewClientModalProps {
   clientToEdit?: ClientData | null;
 }
 
-const BRINDE_OPTIONS = ['Brinde VIP', 'Brinde Médio', 'Brinde Pequeno', 'Não Recebe', 'Outro']
+// Constantes removidas - agora gerenciadas pelo BrindeSelector
+import { supabase } from '../lib/supabase'
 
 export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewClientModalProps) {
   const [activeTab, setActiveTab] = useState<'geral' | 'endereco' | 'historico'>('geral')
+  const [brindeOptions, setBrindeOptions] = useState<string[]>([])
   
   const [formData, setFormData] = useState<ClientData>({
     nome: '', empresa: '', cargo: '', telefone: '',
-    tipo_brinde: 'Brinde Médio', outro_brinde: '', quantidade: 1,
+    tipo_brinde: '', outro_brinde: '', quantidade: 1,
     cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
     email: '', socio: '', observacoes: '', ignored_fields: [],
     historico_brindes: []
   })
+
+  // Buscar tipos de brinde do banco
+  useEffect(() => {
+    const fetchBrindes = async () => {
+      const { data } = await supabase
+        .from('tipos_brinde')
+        .select('nome')
+        .eq('ativo', true)
+        .order('nome')
+      
+      if (data) {
+        setBrindeOptions(data.map(b => b.nome))
+      }
+    }
+    
+    if (isOpen) {
+      fetchBrindes()
+    }
+  }, [isOpen])
 
   const initializeHistory = (currentHistory?: GiftHistoryItem[] | null) => {
     const defaultYears = ['2025', '2024'];
@@ -211,16 +232,14 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Sócio Responsável</label>
-                                <SocioSelector 
-                                    value={formData.socio} 
-                                    onChange={(value) => setFormData({...formData, socio: value})} 
-                                />
+                                <input type="text" value={formData.socio} onChange={e => setFormData({...formData, socio: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Brinde (Atual)</label>
-                                <select value={formData.tipo_brinde} onChange={e => setFormData({...formData, tipo_brinde: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none">
-                                    {BRINDE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                </select>
+                                <BrindeSelector 
+                                    value={formData.tipo_brinde} 
+                                    onChange={(value) => setFormData({...formData, tipo_brinde: value})} 
+                                />
                             </div>
                             {formData.tipo_brinde === 'Outro' && (
                                 <div className="md:col-span-2">
@@ -294,7 +313,7 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                                                     className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#112240] outline-none bg-white"
                                                 >
                                                     <option value="">Selecione...</option>
-                                                    {BRINDE_OPTIONS.map(opt => (
+                                                    {brindeOptions.map(opt => (
                                                         <option key={opt} value={opt}>{opt}</option>
                                                     ))}
                                                 </select>
