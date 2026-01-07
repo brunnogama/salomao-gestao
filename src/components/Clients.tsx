@@ -14,7 +14,7 @@ import { logAction } from '../lib/logger'
 
 interface ClientsProps {
   initialFilters?: { socio?: string; brinde?: string };
-  tableName?: string; // 'clientes' ou 'magistrados'
+  tableName?: string;
 }
 
 export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps) {
@@ -112,48 +112,74 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
     return result
   }, [clients, searchTerm, filterSocio, filterBrinde, sortOrder])
 
-  // ✅ FUNÇÃO DE EXCLUSÃO CORRIGIDA COM CASCATA MANUAL
+  // ✅ FUNÇÃO DE EXCLUSÃO COM ALERTAS VISUAIS EXTREMOS
   const handleDelete = async (client: ClientData) => {
-    if (!confirm(`⚠️ Tem certeza que deseja excluir permanentemente: ${client.nome}?\n\nEsta ação não pode ser desfeita.`)) {
-        return;
+    // ALERTA 1: Confirma que a função foi chamada
+    alert(`🔴 DEBUG 1: Função handleDelete foi chamada para: ${client.nome}`)
+    console.log('🔴 DEBUG 1: handleDelete iniciado', client)
+    
+    const confirmDelete = confirm(`⚠️ CONFIRMA EXCLUSÃO?\n\nCliente: ${client.nome}\nID: ${client.id}\n\nEsta ação NÃO pode ser desfeita!`)
+    
+    if (!confirmDelete) {
+        alert('🟢 DEBUG: Exclusão cancelada pelo usuário')
+        console.log('🟢 Exclusão cancelada')
+        return
     }
 
-    try {
-        console.log(`🗑️ Iniciando exclusão de cliente ID ${client.id} - ${client.nome}...`)
+    // ALERTA 2: Usuário confirmou
+    alert(`🔴 DEBUG 2: Usuário confirmou exclusão. Iniciando processo...`)
+    console.log('🔴 DEBUG 2: Iniciando exclusão real')
 
-        // PASSO 1: Limpar tarefas vinculadas (se houver)
-        console.log('→ Verificando tarefas vinculadas...')
+    try {
+        // PASSO 1: Deletar tasks
+        alert(`🔴 DEBUG 3: Deletando tasks vinculadas ao cliente ID ${client.id}...`)
+        console.log('🔴 DEBUG 3: Deletando tasks para client_id:', client.id)
+        
         const { error: errTasks } = await supabase
             .from('tasks')
             .delete()
             .eq('client_id', client.id)
         
         if (errTasks) {
-            console.warn('⚠️ Aviso ao limpar tarefas:', errTasks)
+            alert(`🟡 DEBUG 4: Aviso ao deletar tasks: ${errTasks.message}`)
+            console.warn('🟡 DEBUG 4: Erro tasks:', errTasks)
         } else {
-            console.log('✅ Tarefas vinculadas removidas (se existiam)')
+            alert('🟢 DEBUG 4: Tasks deletadas com sucesso (ou não existiam)')
+            console.log('🟢 DEBUG 4: Tasks removidas')
         }
 
-        // PASSO 2: Excluir o cliente
-        console.log(`→ Excluindo cliente da tabela ${tableName}...`)
-        const { error: errCliente } = await supabase
+        // PASSO 2: Deletar cliente
+        alert(`🔴 DEBUG 5: Deletando cliente da tabela ${tableName}...`)
+        console.log('🔴 DEBUG 5: Deletando cliente ID:', client.id, 'tabela:', tableName)
+        
+        const { error: errCliente, data: deleteData } = await supabase
             .from(tableName)
             .delete()
             .eq('id', client.id)
+            .select()
+        
+        alert(`🔴 DEBUG 6: Resultado do DELETE:\nErro: ${errCliente ? errCliente.message : 'nenhum'}\nData: ${JSON.stringify(deleteData)}`)
+        console.log('🔴 DEBUG 6: Resultado DELETE:', { error: errCliente, data: deleteData })
         
         if (errCliente) {
-            console.error('❌ Erro ao excluir cliente:', errCliente)
-            throw new Error(`Falha ao excluir: ${errCliente.message}`)
+            throw new Error(`Erro Supabase: ${errCliente.message} (Código: ${errCliente.code})`)
         }
 
-        // PASSO 3: Atualizar UI e registrar log
-        console.log('✅ Cliente excluído com sucesso!')
+        // PASSO 3: Atualizar UI
+        alert('🟢 DEBUG 7: Cliente deletado! Atualizando interface...')
+        console.log('🟢 DEBUG 7: Atualizando UI')
+        
         setClients(current => current.filter(c => c.id !== client.id))
+        
         await logAction('EXCLUIR', tableName.toUpperCase(), `Excluiu: ${client.nome}`)
         
+        alert('✅ SUCESSO TOTAL! Cliente excluído com sucesso!')
+        console.log('✅ Exclusão concluída com sucesso')
+        
     } catch (error: any) {
-        console.error('❌ Erro na exclusão:', error)
-        alert(`Falha ao excluir cliente:\n\n${error.message}\n\nPossíveis causas:\n- Permissões RLS bloqueando DELETE\n- Foreign Keys ativas\n- Conexão com banco perdida`)
+        alert(`❌ ERRO FATAL!\n\nMensagem: ${error.message}\n\nVeja o console (F12) para mais detalhes`)
+        console.error('❌ ERRO COMPLETO:', error)
+        console.error('Stack trace:', error.stack)
     }
   }
 
@@ -176,7 +202,6 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
 
       if (jsonData.length === 0) throw new Error('Arquivo vazio.')
 
-      // ✅ CORREÇÃO: Usa getUser() do Supabase v2
       const { data: { user } } = await supabase.auth.getUser()
       const userEmail = user?.email || 'Importação'
 
@@ -235,7 +260,6 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
     fileInputRef.current?.click()
   }
 
-  // ✅ HELPERS DE COMUNICAÇÃO (WHATSAPP, 3CX, EMAIL)
   const handleWhatsApp = (client: ClientData, e?: React.MouseEvent) => {
     if(e) { e.preventDefault(); e.stopPropagation(); }
     const cleanPhone = (client.telefone || '').replace(/\D/g, '')
@@ -297,7 +321,6 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
       <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls" className="hidden" />
 
       <div className="flex-shrink-0 flex flex-col gap-4">
-        {/* HEADER */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
             <div className="pl-2">
                 <p className="text-sm font-medium text-gray-500">
@@ -416,7 +439,17 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
                             </div>
                             <div className="flex gap-1">
                                 <button onClick={(e) => { e.stopPropagation(); openEditModal(client); }} className="p-1.5 text-gray-400 hover:text-[#112240] hover:bg-gray-100 rounded-md transition-colors" title="Editar"><Pencil className="h-3.5 w-3.5" /></button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDelete(client); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors z-10" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                <button 
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        console.log('🔴 BOTÃO DELETAR CLICADO!', client); 
+                                        handleDelete(client); 
+                                    }} 
+                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors z-10" 
+                                    title="Excluir"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
                             </div>
                         </div>
                     </div>
