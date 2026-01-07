@@ -2,6 +2,7 @@ import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { X, Save, Gift, Calendar, Clock, UserCircle } from 'lucide-react'
 import { IMaskInput } from 'react-imask'
+import { SocioSelector } from './SocioSelector'
 
 export interface GiftHistoryItem {
   ano: string;
@@ -210,7 +211,10 @@ export function NewClientModal({ isOpen, onClose, onSave, clientToEdit }: NewCli
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Sócio Responsável</label>
-                                <input type="text" value={formData.socio} onChange={e => setFormData({...formData, socio: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#112240] outline-none" />
+                                <SocioSelector 
+                                    value={formData.socio} 
+                                    onChange={(value) => setFormData({...formData, socio: value})} 
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Brinde (Atual)</label>
