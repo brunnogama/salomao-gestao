@@ -13,7 +13,7 @@ import { logAction } from '../lib/logger'
 
 interface ClientsProps {
   initialFilters?: { socio?: string; brinde?: string };
-  tableName?: string; // Propriedade nova para definir a tabela (Padrão: 'clientes')
+  tableName?: string; // Propriedade para definir a tabela (Padrão: 'clientes')
 }
 
 export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps) {
@@ -118,7 +118,7 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
   const handleSave = async (client: ClientData) => {
     const { data: { user } } = await supabase.auth.getUser();
     const userEmail = user?.email || 'Sistema';
-    const logModule = tableName.toUpperCase(); // Loga como CLIENTES ou MAGISTRADOS
+    const logModule = tableName.toUpperCase();
 
     const dbData: any = {
         nome: client.nome,
@@ -204,6 +204,7 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
     window.location.href = `tel:${cleanPhone}`;
   }
 
+  // --- ALTERAÇÃO AQUI: ABERTURA EM NOVA ABA ---
   const handleEmail = (client: ClientData, e?: React.MouseEvent) => {
     if(e) { e.preventDefault(); e.stopPropagation(); }
     if(!client.email) { alert("E-mail não cadastrado."); return; }
@@ -211,7 +212,9 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
     const subject = encodeURIComponent("Atualização Cadastral - Salomão Advogados");
     const bodyText = `Olá Sr(a). ${client.nome}.\n\nSomos do Salomão Advogados e estamos atualizando nossa base de dados.\nPoderia, por gentileza, confirmar se as informações abaixo estão corretas?\n\n🏢 Empresa: ${client.empresa || '-'}\n📮 CEP: ${client.cep || '-'}\n📍 Endereço: ${client.endereco || '-'}\n🔢 Número: ${client.numero || '-'}\n🏘️ Bairro: ${client.bairro || '-'}\n🏙️ Cidade/UF: ${client.cidade || '-'}/${client.estado || '-'}\n📝 Complemento: ${client.complemento || '-'}\n📧 E-mail: ${client.email || '-'}\n\nAgradecemos desde já!`;
     const body = encodeURIComponent(bodyText);
-    window.location.href = `mailto:${client.email}?subject=${subject}&body=${body}`;
+    
+    // Usa window.open com '_blank' para nova aba
+    window.open(`mailto:${client.email}?subject=${subject}&body=${body}`, '_blank');
   }
 
   const handleExportExcel = async () => {
