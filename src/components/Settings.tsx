@@ -3,7 +3,7 @@ import {
   Download, Upload, FileSpreadsheet, CheckCircle, AlertCircle, 
   Users, Pencil, Trash2, Save, RefreshCw, 
   AlertTriangle, History, Copyright, Code,
-  Shield, UserPlus, Ban, Check, Lock, Building, X
+  Shield, UserPlus, Ban, Check, Lock, Building
 } from 'lucide-react'
 import { utils, read, writeFile } from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -194,99 +194,40 @@ export function Settings() {
     }
   }
 
-  // --- FUNÇÃO RESETAR SISTEMA (CORRIGIDA PARA UUID) ---
+  // --- ACTIONS: SYSTEM RESET (CORRIGIDO) ---
+
   const handleSystemReset = async () => {
-    if (!confirm('⚠️ PERIGO: Isso apagará TODOS os dados (Clientes, Magistrados e Tarefas). Tem certeza absoluta?')) return;
+    if (!confirm('PERIGO: Isso apagará TODOS os dados (Clientes e Magistrados). Tem certeza absoluta?')) return;
     
-    const confirmText = prompt('Digite "APAGAR" (em maiúsculas) para confirmar a exclusão total:')
-    if (confirmText !== 'APAGAR') {
-        alert('Operação cancelada.')
-        return;
-    }
+    const confirmText = prompt('Digite APAGAR para confirmar a exclusão total:')
+    if (confirmText !== 'APAGAR') return;
 
     setLoading(true)
-    setStatus({ type: null, message: 'Iniciando limpeza da base de dados...' })
+    setStatus({ type: null, message: 'Limpando base de dados...' })
 
     try {
-        console.log('🔥 Iniciando reset do sistema...')
+        // 1. Tenta apagar TUDO da tabela de tarefas (sem .catch para evitar erro de TS, usando try/catch do bloco)
+        // Isso remove as dependências que travam a exclusão
+        const { error: errTasks } = await supabase.from('tasks').delete().neq('id', 0);
+        if (errTasks) console.warn("Aviso tarefas:", errTasks);
 
-        // PASSO 1: Limpar TODAS as tarefas (remove dependências FK)
-        setStatus({ type: null, message: '1/3: Removendo tarefas do Kanban...' })
-        
-        // Primeiro, buscar todos os IDs para deletar
-        const { data: allTasks } = await supabase.from('tasks').select('id')
-        
-        if (allTasks && allTasks.length > 0) {
-            // Deletar cada task individualmente ou em lote
-            const { error: errTasks } = await supabase
-                .from('tasks')
-                .delete()
-                .in('id', allTasks.map(t => t.id))
-            
-            if (errTasks) {
-                console.error('Erro ao limpar tasks:', errTasks)
-                throw new Error(`Falha ao limpar tarefas: ${errTasks.message}`)
-            }
-            console.log(`✅ ${allTasks.length} tarefas removidas`)
-        } else {
-            console.log('✅ Nenhuma tarefa para remover')
-        }
+        // 2. Apaga Magistrados
+        const { error: err1 } = await supabase.from('magistrados').delete().neq('id', 0)
+        if (err1) throw err1
 
-        // PASSO 2: Limpar Magistrados
-        setStatus({ type: null, message: '2/3: Removendo magistrados...' })
-        const { data: allMag } = await supabase.from('magistrados').select('id')
-        
-        if (allMag && allMag.length > 0) {
-            const { error: errMag } = await supabase
-                .from('magistrados')
-                .delete()
-                .in('id', allMag.map(m => m.id))
-            
-            if (errMag) {
-                console.error('Erro ao limpar magistrados:', errMag)
-                throw new Error(`Falha ao limpar magistrados: ${errMag.message}`)
-            }
-            console.log(`✅ ${allMag.length} magistrados removidos`)
-        } else {
-            console.log('✅ Nenhum magistrado para remover')
-        }
+        // 3. Apaga Clientes
+        const { error: err2 } = await supabase.from('clientes').delete().neq('id', 0)
+        if (err2) throw err2
 
-        // PASSO 3: Limpar Clientes
-        setStatus({ type: null, message: '3/3: Removendo clientes...' })
-        const { data: allClientes } = await supabase.from('clientes').select('id')
+        setStatus({ type: 'success', message: 'Sistema resetado com sucesso!' })
+        await logAction('RESET', 'SISTEMA', 'Resetou toda a base de dados')
         
-        if (allClientes && allClientes.length > 0) {
-            const { error: errClientes } = await supabase
-                .from('clientes')
-                .delete()
-                .in('id', allClientes.map(c => c.id))
-            
-            if (errClientes) {
-                console.error('Erro ao limpar clientes:', errClientes)
-                throw new Error(`Falha ao limpar clientes: ${errClientes.message}`)
-            }
-            console.log(`✅ ${allClientes.length} clientes removidos`)
-        } else {
-            console.log('✅ Nenhum cliente para remover')
-        }
-
-        // Sucesso!
-        setStatus({ type: 'success', message: '✅ Sistema resetado com sucesso! Todos os dados foram removidos.' })
-        await logAction('RESET', 'SISTEMA', 'Resetou toda a base de dados (Clientes, Magistrados, Tasks)')
-        
-        // Recarrega os sócios para atualizar a interface
-        setTimeout(() => {
-            fetchSocios()
-            fetchUsers()
-        }, 1000)
+        fetchSocios()
         
     } catch (error: any) {
-        console.error("❌ Erro crítico no reset:", error)
-        setStatus({ 
-            type: 'error', 
-            message: `Erro ao resetar: ${error.message || 'Erro desconhecido'}. Verifique as permissões RLS.` 
-        })
-        alert(`❌ Falha no reset do sistema:\n\n${error.message}\n\nPossíveis causas:\n- Permissões RLS bloqueando DELETE\n- Foreign Keys ativas\n- Conexão com banco perdida`)
+        console.error("Erro no reset:", error)
+        setStatus({ type: 'error', message: 'Erro: ' + error.message })
+        alert("Erro ao resetar: " + error.message);
     } finally {
         setLoading(false)
     }
@@ -314,58 +255,37 @@ export function Settings() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const jsonData = utils.sheet_to_json(worksheet)
 
-      if (jsonData.length === 0) throw new Error('Arquivo vazio.')
+      if (jsonData.length === 0) throw new Error('Arquivo vazio')
 
-      // ✅ CORREÇÃO: Usa getUser() que existe no Supabase v2
-      const { data: { user } } = await supabase.auth.getUser()
-      const userEmail = user?.email || 'Importação'
-
-      const normalizeKeys = (obj: any) => {
-          const newObj: any = {};
-          Object.keys(obj).forEach(key => {
-              newObj[key.trim().toLowerCase()] = obj[key];
-          });
-          return newObj;
-      }
-
-      const itemsToInsert = jsonData.map((rawRow: any) => {
-        const row = normalizeKeys(rawRow);
-        if (!row.nome && !row['nome completo']) return null;
-
-        return {
-            nome: row.nome || row['nome completo'] || 'Sem Nome',
-            empresa: row.empresa || '',
-            cargo: row.cargo || '',
-            email: row.email || row['e-mail'] || '',
-            telefone: row.telefone || row.celular || '',
-            socio: row.socio || row['sócio'] || '',
-            tipo_brinde: row.tipo_brinde || row['tipo de brinde'] || row.brinde || 'Brinde Médio',
-            quantidade: row.quantidade || 1,
-            cep: row.cep || '',
-            endereco: row.endereco || row['endereço'] || '',
-            numero: row.numero || row['número'] || '',
-            bairro: row.bairro || '',
-            cidade: row.cidade || '',
-            estado: row.estado || row.uf || '',
-            created_by: userEmail,
-            updated_by: userEmail
-        }
-      }).filter(Boolean)
-
-      if (itemsToInsert.length === 0) throw new Error('Nenhum item válido.')
-
-      const { error } = await supabase.from('clientes').insert(itemsToInsert)
-
-      if (error) throw error
-
-      setStatus({ type: 'success', message: `${itemsToInsert.length} clientes importados com sucesso!` })
-      await logAction('IMPORTAR', 'CLIENTES', `Importou ${itemsToInsert.length} registros`)
-
-      setTimeout(() => setStatus({ type: null, message: '' }), 5000)
+      const clientsToInsert = jsonData.map((row: any) => ({
+        nome: row.nome || row.Nome,
+        empresa: row.empresa || row.Empresa || '',
+        cargo: row.cargo || row.Cargo || '',
+        email: row.email || row.Email || '',
+        telefone: row.telefone || row.Telefone || '',
+        socio: row.socio || row.Socio || '',
+        tipo_brinde: row.tipo_brinde || row['Tipo Brinde'] || 'Brinde Médio',
+        quantidade: row.quantidade || row.Quantidade || 1,
+        cep: row.cep || row.CEP || '',
+        endereco: row.endereco || row.Endereco || '',
+        numero: row.numero || row.Numero || '',
+        bairro: row.bairro || row.Bairro || '',
+        cidade: row.cidade || row.Cidade || '',
+        estado: row.estado || row.Estado || ''
+      }))
       
+      const { error } = await supabase.from('clientes').insert(clientsToInsert)
+      
+      if (error) throw error
+      
+      setStatus({ type: 'success', message: `${clientsToInsert.length} clientes importados com sucesso!` })
+      await logAction('IMPORTAR', 'SISTEMA', `Importou ${clientsToInsert.length} clientes via Excel`)
+      
+      fetchSocios()
+
     } catch (error: any) {
-      console.error(error)
-      setStatus({ type: 'error', message: error.message })
+      console.error('Erro na importação:', error)
+      setStatus({ type: 'error', message: 'Erro ao importar: ' + error.message })
     } finally {
       setLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -373,115 +293,140 @@ export function Settings() {
   }
 
   const getVersionColor = (type: string) => {
-    switch(type) {
-        case 'feature': return 'bg-blue-100 text-blue-700 border-blue-200'
-        case 'fix': return 'bg-orange-100 text-orange-700 border-orange-200'
-        case 'security': return 'bg-red-100 text-red-700 border-red-200'
-        default: return 'bg-gray-100 text-gray-700 border-gray-200'
-    }
+      switch(type) {
+          case 'feature': return 'bg-green-100 text-green-700 border-green-200'
+          default: return 'bg-gray-100 text-gray-700 border-gray-200'
+      }
   }
 
   return (
-    <div className="space-y-8">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="max-w-6xl mx-auto pb-12 space-y-8 relative">
+      
+      {/* --- MODAL USUÁRIO --- */}
+      {isUserModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+             <h3 className="text-lg font-bold text-[#112240] mb-4">{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</h3>
+             <div className="space-y-3">
+                 <div>
+                     <label className="text-xs font-bold text-gray-500">Nome</label>
+                     <input type="text" className="w-full border rounded p-2" value={userForm.nome} onChange={e => setUserForm({...userForm, nome: e.target.value})} />
+                 </div>
+                 <div>
+                     <label className="text-xs font-bold text-gray-500">E-mail</label>
+                     <input type="email" className="w-full border rounded p-2" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} />
+                 </div>
+                 <div>
+                     <label className="text-xs font-bold text-gray-500">Cargo</label>
+                     <select className="w-full border rounded p-2" value={userForm.cargo} onChange={e => setUserForm({...userForm, cargo: e.target.value})}>
+                         <option>Administrador</option>
+                         <option>Sócio</option>
+                         <option>Colaborador</option>
+                     </select>
+                 </div>
+             </div>
+             <div className="flex justify-end gap-3 mt-6">
+                 <button onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancelar</button>
+                 <button onClick={handleSaveUser} className="px-4 py-2 bg-[#112240] text-white rounded font-bold hover:bg-blue-900">Salvar</button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- CONFIGURAÇÃO: MAGISTRADOS --- */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-200 p-6">
         <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-blue-50 rounded-lg text-blue-700"><Shield className="h-6 w-6" /></div>
+            <div className="p-2 bg-orange-50 rounded-lg text-orange-700"><Lock className="h-6 w-6" /></div>
             <div>
-                <h3 className="font-bold text-[#112240] text-lg">Módulo Magistrados</h3>
-                <p className="text-sm text-gray-500">Controle de PIN e e-mails autorizados.</p>
+                <h3 className="font-bold text-[#112240] text-lg">Segurança: Módulo Magistrados</h3>
+                <p className="text-sm text-gray-500">Controle de acesso à área restrita.</p>
             </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">PIN de Acesso (4 dígitos)</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">PIN de Acesso (4 dígitos)</label>
                 <input 
                     type="text" 
                     maxLength={4}
                     value={magistradosConfig.pin}
-                    onChange={(e) => setMagistradosConfig({...magistradosConfig, pin: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none focus:border-[#112240]"
-                    placeholder="1234"
+                    onChange={e => setMagistradosConfig({...magistradosConfig, pin: e.target.value.replace(/\D/g,'')})}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-orange-500 font-mono text-center tracking-widest text-lg"
+                    placeholder="0000"
                 />
             </div>
             <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">E-mails Permitidos (separados por vírgula)</label>
-                <input 
-                    type="text"
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Emails Permitidos (separar por vírgula)</label>
+                <textarea 
+                    rows={3}
                     value={magistradosConfig.emails}
-                    onChange={(e) => setMagistradosConfig({...magistradosConfig, emails: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none focus:border-[#112240]"
-                    placeholder="usuario1@email.com, usuario2@email.com"
+                    onChange={e => setMagistradosConfig({...magistradosConfig, emails: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-orange-500 text-xs"
+                    placeholder="email1@salomao.adv.br, email2@salomao.adv.br"
                 />
             </div>
         </div>
-
-        <button 
-            onClick={handleSaveConfigMagistrados}
-            disabled={loadingConfig}
-            className="mt-4 px-4 py-2 bg-[#112240] hover:bg-[#1a3a6c] text-white rounded-lg text-sm font-bold transition-all disabled:opacity-70 flex items-center gap-2"
-        >
-            {loadingConfig ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-            Salvar Configurações
-        </button>
+        <div className="mt-4 flex justify-end">
+            <button 
+                onClick={handleSaveConfigMagistrados}
+                disabled={loadingConfig}
+                className="px-4 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+            >
+                <Save className="h-4 w-4" /> Salvar Segurança
+            </button>
+        </div>
       </div>
 
+      {/* --- GESTÃO DE USUÁRIOS --- */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-50 rounded-lg text-blue-700"><Users className="h-6 w-6" /></div>
                   <div>
-                      <h3 className="font-bold text-[#112240] text-lg">Usuários do Sistema</h3>
-                      <p className="text-sm text-gray-500">Gerencie quem pode acessar a plataforma.</p>
+                      <h3 className="font-bold text-[#112240] text-lg">Gestão de Usuários</h3>
+                      <p className="text-sm text-gray-500">Controle quem tem acesso ao sistema.</p>
                   </div>
               </div>
-              <button 
-                  onClick={() => openUserModal()}
-                  className="px-4 py-2 bg-[#112240] hover:bg-[#1a3a6c] text-white rounded-lg text-sm font-bold transition-all flex items-center gap-2"
-              >
+              <button onClick={() => openUserModal()} className="flex items-center gap-2 text-sm bg-blue-50 text-blue-700 px-3 py-2 rounded-lg font-bold hover:bg-blue-100 transition-colors">
                   <UserPlus className="h-4 w-4" /> Novo Usuário
               </button>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-100">
-              <table className="min-w-full divide-y divide-gray-100">
-                  <thead className="bg-gray-50">
-                      <tr>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nome</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">E-mail</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Cargo</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
-                          <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Ações</th>
+          <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                  <thead>
+                      <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase">
+                          <th className="py-3 pl-2">Nome</th>
+                          <th className="py-3">Email</th>
+                          <th className="py-3">Cargo</th>
+                          <th className="py-3">Status</th>
+                          <th className="py-3 text-right pr-2">Ações</th>
                       </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
+                  <tbody className="text-sm">
                       {loadingUsers ? (
-                          <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Carregando usuários...</td></tr>
-                      ) : users.map((user) => (
-                          <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.nome}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.email}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-xs">
-                                  <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded font-bold uppercase">{user.cargo}</span>
+                          <tr><td colSpan={5} className="py-4 text-center text-gray-400">Carregando...</td></tr>
+                      ) : users.map(user => (
+                          <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                              <td className="py-3 pl-2 font-bold text-gray-700">{user.nome}</td>
+                              <td className="py-3 text-gray-600">{user.email}</td>
+                              <td className="py-3"><span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-bold">{user.cargo}</span></td>
+                              <td className="py-3">
+                                  {user.ativo ? 
+                                    <span className="flex items-center gap-1 text-green-600 text-xs font-bold"><Check className="h-3 w-3" /> Ativo</span> : 
+                                    <span className="flex items-center gap-1 text-red-500 text-xs font-bold"><Ban className="h-3 w-3" /> Bloqueado</span>
+                                  }
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-xs">
-                                  <span className={`px-2 py-1 rounded font-bold flex items-center gap-1 w-fit ${user.ativo ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                                      {user.ativo ? <Check className="h-3 w-3" /> : <Ban className="h-3 w-3" />}
-                                      {user.ativo ? 'ATIVO' : 'BLOQUEADO'}
-                                  </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-center">
-                                  <div className="flex items-center justify-center gap-2">
-                                      <button onClick={() => openUserModal(user)} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded" title="Editar">
-                                          <Pencil className="h-4 w-4" />
-                                      </button>
-                                      <button onClick={() => handleToggleActive(user)} className="p-1.5 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded" title={user.ativo ? 'Bloquear' : 'Desbloquear'}>
-                                          {user.ativo ? <Ban className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                                      </button>
-                                      <button onClick={() => handleDeleteUser(user)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded" title="Excluir">
-                                          <Trash2 className="h-4 w-4" />
-                                      </button>
-                                  </div>
+                              <td className="py-3 text-right pr-2 flex justify-end gap-2">
+                                  <button onClick={() => handleToggleActive(user)} title={user.ativo ? "Bloquear" : "Ativar"} className={`p-1.5 rounded hover:bg-gray-200 ${user.ativo ? 'text-green-600' : 'text-red-500'}`}>
+                                      <Shield className="h-4 w-4" />
+                                  </button>
+                                  <button onClick={() => openUserModal(user)} title="Editar" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded">
+                                      <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button onClick={() => handleDeleteUser(user)} title="Excluir" className="p-1.5 text-red-500 hover:bg-red-50 rounded">
+                                      <Trash2 className="h-4 w-4" />
+                                  </button>
                               </td>
                           </tr>
                       ))}
@@ -608,11 +553,9 @@ export function Settings() {
           </div>
           <button 
             onClick={handleSystemReset}
-            disabled={loading}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-70"
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
           >
-            {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {loading ? 'Limpando...' : 'Resetar Sistema'}
+            <Trash2 className="h-4 w-4" /> Resetar Sistema
           </button>
       </div>
 
@@ -627,7 +570,7 @@ export function Settings() {
                 Sistema de gestão desenvolvido exclusivamente para Salomão Advogados.
             </p>
             <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
-                <Copyright className="h-3 w-3" /> 2024-2026
+                <Copyright className="h-3 w-3" /> 2025-2026
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
                 <Code className="h-3 w-3" /><span>Desenvolvido por <strong>Brunno Gama</strong></span>
@@ -664,57 +607,149 @@ export function Settings() {
             </div>
         </div>
 
-      </div>
-
-      {/* MODAL DE USUÁRIO */}
-      {isUserModalOpen && (
-        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-scaleIn">
-            <div className="bg-[#112240] p-6 text-white flex items-center justify-between">
-              <h2 className="text-xl font-bold">{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</h2>
-              <button onClick={() => setIsUserModalOpen(false)} className="p-2 hover:bg-white/10 rounded-lg"><X className="h-5 w-5" /></button>
+        {/* SEÇÃO DE CRÉDITOS */}
+        <div className="md:col-span-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-6">
+                <Code className="h-5 w-5 text-blue-600" />
+                <h3 className="font-bold text-[#112240] text-lg">Créditos e Informações</h3>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); handleSaveUser(); }} className="p-6 space-y-4">
-              <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Nome Completo</label>
-                  <input 
-                      type="text"
-                      required
-                      value={userForm.nome}
-                      onChange={(e) => setUserForm({...userForm, nome: e.target.value})}
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none focus:border-[#112240]"
-                  />
-              </div>
-              <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">E-mail</label>
-                  <input 
-                      type="email"
-                      required
-                      value={userForm.email}
-                      onChange={(e) => setUserForm({...userForm, email: e.target.value})}
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none focus:border-[#112240]"
-                  />
-              </div>
-              <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Cargo</label>
-                  <select 
-                      value={userForm.cargo}
-                      onChange={(e) => setUserForm({...userForm, cargo: e.target.value})}
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none focus:border-[#112240]"
-                  >
-                      <option value="Colaborador">Colaborador</option>
-                      <option value="Advogado">Advogado</option>
-                      <option value="Sócio">Sócio</option>
-                      <option value="Administrador">Administrador</option>
-                  </select>
-              </div>
-              <button type="submit" className="w-full bg-[#112240] text-white py-3 rounded-xl font-bold hover:bg-[#1a3a6c] transition-all flex items-center justify-center gap-2">
-                  <Save className="h-4 w-4" /> Salvar Usuário
-              </button>
-            </form>
-          </div>
+
+            <div className="space-y-6">
+                {/* Desenvolvedor */}
+                <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md">
+                            M
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-gray-900 text-base">Marcio Gama</h4>
+                            <p className="text-sm text-gray-600">Desenvolvedor Full Stack</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Empresa */}
+                <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
+                    <div className="flex items-center gap-3 mb-2">
+                        <Building className="h-5 w-5 text-blue-600" />
+                        <h4 className="font-bold text-gray-900 text-sm">Empresa</h4>
+                    </div>
+                    <p className="text-base font-bold text-blue-600 ml-8">Flow Metrics</p>
+                    <p className="text-xs text-gray-500 ml-8 mt-1">Soluções em Análise de Dados e Desenvolvimento</p>
+                </div>
+
+                {/* Tecnologias */}
+                <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Code className="h-5 w-5 text-blue-600" />
+                        <h4 className="font-bold text-gray-900 text-sm">Tecnologias Utilizadas</h4>
+                    </div>
+                    <div className="ml-8 grid grid-cols-2 gap-3">
+                        {/* Frontend */}
+                        <div>
+                            <p className="text-xs font-bold text-gray-700 mb-2">Frontend</p>
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                                    <span className="text-xs text-gray-600">React 18</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                                    <span className="text-xs text-gray-600">TypeScript</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                                    <span className="text-xs text-gray-600">Tailwind CSS</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                                    <span className="text-xs text-gray-600">Vite</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Backend */}
+                        <div>
+                            <p className="text-xs font-bold text-gray-700 mb-2">Backend & Infra</p>
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                    <span className="text-xs text-gray-600">Supabase</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                    <span className="text-xs text-gray-600">PostgreSQL</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                    <span className="text-xs text-gray-600">Cloudflare Pages</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Bibliotecas */}
+                        <div className="col-span-2">
+                            <p className="text-xs font-bold text-gray-700 mb-2">Bibliotecas</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                                    <span className="text-xs text-gray-600">Headless UI</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                                    <span className="text-xs text-gray-600">Lucide Icons</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                                    <span className="text-xs text-gray-600">Recharts</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                                    <span className="text-xs text-gray-600">SheetJS (XLSX)</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                                    <span className="text-xs text-gray-600">React IMask</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                                    <span className="text-xs text-gray-600">DnD Kit</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Copyright */}
+                <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-lg p-4 border border-gray-700 shadow-md">
+                    <div className="flex items-center gap-3 text-white">
+                        <Copyright className="h-5 w-5" />
+                        <div>
+                            <p className="text-sm font-bold">© 2025-2026 Flow Metrics</p>
+                            <p className="text-xs text-gray-300 mt-1">Todos os direitos reservados</p>
+                            <p className="text-xs text-gray-400 mt-2">
+                                Sistema desenvolvido para <span className="font-semibold text-white">Salomão Advogados</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Versão do Sistema */}
+                <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-blue-600" />
+                            <span className="text-xs font-medium text-gray-600">Versão do Sistema</span>
+                        </div>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
+                            v2.5.0
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
-      )}
+
+      </div>
 
     </div>
   )
