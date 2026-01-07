@@ -2,7 +2,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { 
   Plus, Search, X, Filter, ArrowUpDown, Check, 
-  MessageCircle, Trash2, Pencil, Mail, Phone
+  MessageCircle, Trash2, Pencil, Mail, Phone, 
+  Briefcase, User, Gift, Info, MapPin // Adicionei os ícones que o card antigo usava
 } from 'lucide-react'
 import { Menu, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
@@ -137,35 +138,32 @@ export function Clients({ initialFilters }: ClientsProps) {
   }
 
   if (loading) return (
-    <div className="flex justify-center items-center h-64">
+    <div className="flex justify-center items-center h-full">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#112240]"></div>
     </div>
   )
 
   return (
-    <div className="space-y-6">
+    // CORREÇÃO: h-full flex flex-col para permitir que o grid interno role
+    <div className="h-full flex flex-col gap-4">
       
-      {/* HEADER UNIFICADO */}
-      <div className="flex flex-col gap-4">
+      {/* HEADER FIXO NO TOPO DO MÓDULO */}
+      <div className="flex-shrink-0 flex flex-col gap-4">
         
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
             
-            {/* Lado Esquerdo: Contador */}
             <div className="pl-2">
                 <p className="text-sm font-medium text-gray-500">
                     <span className="font-bold text-[#112240]">{processedClients.length}</span> registros
                 </p>
             </div>
             
-            {/* Lado Direito: Filtros, Ordenação e Ações */}
             <div className="flex flex-wrap items-center gap-2">
                 
-                {/* Ícone Filtro */}
                 <div className="flex items-center gap-1 text-gray-400 mr-1 hidden sm:flex">
                     <Filter className="h-4 w-4" />
                 </div>
 
-                {/* Filtro Sócio */}
                 <div className="relative">
                     <select 
                         value={filterSocio}
@@ -178,7 +176,6 @@ export function Clients({ initialFilters }: ClientsProps) {
                     </select>
                 </div>
 
-                {/* Filtro Brinde */}
                 <div className="relative">
                     <select 
                         value={filterBrinde}
@@ -191,7 +188,6 @@ export function Clients({ initialFilters }: ClientsProps) {
                     </select>
                 </div>
 
-                {/* Ordenação */}
                 <Menu as="div" className="relative">
                     <Menu.Button className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:text-[#112240] hover:bg-gray-100 transition-colors">
                         <ArrowUpDown className="h-3.5 w-3.5" />
@@ -227,7 +223,6 @@ export function Clients({ initialFilters }: ClientsProps) {
 
                 <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
-                {/* Botão Busca */}
                 <button 
                     onClick={() => {
                         setIsSearchOpen(!isSearchOpen);
@@ -239,7 +234,6 @@ export function Clients({ initialFilters }: ClientsProps) {
                     {isSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
                 </button>
 
-                {/* Botão Novo */}
                 <button 
                     onClick={openNewModal}
                     className="flex items-center gap-2 bg-[#112240] hover:bg-[#1a3a6c] text-white px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-colors shadow-sm whitespace-nowrap"
@@ -250,7 +244,6 @@ export function Clients({ initialFilters }: ClientsProps) {
             </div>
         </div>
 
-        {/* Busca Deslizante */}
         <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isSearchOpen ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -267,90 +260,109 @@ export function Clients({ initialFilters }: ClientsProps) {
 
       </div>
 
-      {/* LISTA DE CARDS (LAYOUT ANTIGO RESTAURADO) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {processedClients.map((client) => (
-            <div key={client.id || client.email} onClick={() => openEditModal(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all relative group cursor-pointer animate-fadeIn flex flex-col justify-between">
-                
-                {/* CABEÇALHO DO CARD */}
-                <div className="flex items-start justify-between mb-2">
-                    <div className="flex gap-3 overflow-hidden">
-                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-[#112240] font-bold border border-gray-200 flex-shrink-0">
-                            {client.nome?.charAt(0) || '?'}
+      {/* ÁREA DE ROLAGEM DOS CARDS (flex-1 overflow-auto) */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 pb-4">
+        
+        {/* CORREÇÃO: Grid com 4 colunas (xl:grid-cols-4) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {processedClients.map((client) => (
+                <div key={client.id || client.email} onClick={() => openEditModal(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all relative group cursor-pointer animate-fadeIn flex flex-col justify-between h-full">
+                    
+                    {/* CABEÇALHO DO CARD */}
+                    <div className="flex items-start justify-between mb-3">
+                        <div className="flex gap-3 overflow-hidden">
+                            <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-[#112240] font-bold border border-gray-200 flex-shrink-0">
+                                {client.nome?.charAt(0) || '?'}
+                            </div>
+                            <div className="overflow-hidden">
+                                <h3 className="text-sm font-bold text-gray-900 truncate" title={client.nome}>{client.nome}</h3>
+                                <p className="text-xs text-gray-500 truncate font-medium">{client.empresa}</p>
+                            </div>
                         </div>
-                        <div className="overflow-hidden">
-                            <h3 className="text-sm font-bold text-gray-900 truncate" title={client.nome}>{client.nome}</h3>
-                            <p className="text-xs text-gray-500 truncate">{client.empresa}</p>
-                        </div>
-                    </div>
-                    <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full flex-shrink-0 
-                        ${client.tipo_brinde === 'Brinde VIP' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
-                        {client.tipo_brinde}
-                    </span>
-                </div>
-                
-                {/* CORPO DO CARD (INFORMAÇÕES) */}
-                <div className="bg-gray-50 rounded-md p-2 mb-2 text-xs space-y-1">
-                    <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Sócio:</span>
-                        <span className="font-bold text-[#112240]">{client.socio || '-'}</span>
+                        <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full flex-shrink-0 
+                            ${client.tipo_brinde === 'Brinde VIP' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
+                            {client.tipo_brinde}
+                        </span>
                     </div>
                     
-                    <div className="flex justify-between items-start gap-2">
-                        <span className="text-gray-400 whitespace-nowrap">End:</span>
-                        <span className="text-gray-600 font-medium truncate text-right" title={`${client.endereco}, ${client.numero || ''} - ${client.bairro || ''}`}>
-                            {client.endereco ? `${client.endereco}, ${client.numero || ''}` : '-'}
-                        </span>
+                    {/* CORPO DO CARD - DESIGN DETALHADO RESTAURADO */}
+                    <div className="bg-gray-50 rounded-md p-2.5 mb-3 text-xs space-y-2 border border-gray-100">
+                        <div className="flex justify-between items-center border-b border-gray-200 pb-1.5">
+                            <div className="flex items-center gap-1.5 text-gray-500">
+                                <Info className="h-3 w-3" />
+                                <span>Sócio:</span>
+                            </div>
+                            <span className="font-bold text-[#112240] truncate ml-2">{client.socio || '-'}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-1.5 text-gray-500">
+                                <User className="h-3 w-3" />
+                                <span>Cargo:</span>
+                            </div>
+                            <span className="font-medium text-gray-700 truncate ml-2 max-w-[120px] text-right">{client.cargo || '-'}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-1.5 text-gray-500 flex-shrink-0">
+                                <MapPin className="h-3 w-3" />
+                                <span>Local:</span>
+                            </div>
+                            <span className="font-medium text-gray-700 truncate text-right ml-2" title={`${client.cidade || ''}/${client.estado || ''}`}>
+                                {client.cidade || client.estado ? `${client.cidade || ''}/${client.estado || ''}` : '-'}
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Local:</span>
-                        <span className="text-gray-600 font-medium">
-                            {client.cidade || client.estado ? `${client.cidade || ''}/${client.estado || ''}` : '-'}
-                        </span>
+                    {/* RODAPÉ DO CARD - AÇÕES FIXAS COLORIDAS */}
+                    <div className="border-t border-gray-100 pt-3 flex justify-between items-center mt-auto">
+                        <div className="flex gap-2">
+                            {/* Renderização condicional para botões coloridos */}
+                            {client.telefone && (
+                                <>
+                                    <button onClick={(e) => handleWhatsApp(client, e)} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors" title="WhatsApp">
+                                        <MessageCircle className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button onClick={(e) => handle3CX(client, e)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors" title="Ligar 3CX">
+                                        <Phone className="h-3.5 w-3.5" />
+                                    </button>
+                                </>
+                            )}
+                            {client.email && (
+                                <button onClick={(e) => handleEmail(client, e)} className="p-1.5 text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors" title="Email">
+                                    <Mail className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
+                        
+                        {/* Ações de Edição */}
+                        <div className="flex gap-1">
+                            <button onClick={(e) => { e.stopPropagation(); openEditModal(client); }} className="p-1.5 text-gray-400 hover:text-[#112240] hover:bg-gray-100 rounded-md transition-colors" title="Editar">
+                                <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(client); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Excluir">
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex justify-between items-center">
-                        <span className="text-gray-400">Tel:</span>
-                        <span className="text-gray-600 font-medium">{client.telefone || '-'}</span>
-                    </div>
                 </div>
+            ))}
+        </div>
 
-                {/* RODAPÉ DO CARD (AÇÕES) */}
-                <div className="border-t border-gray-100 pt-2 flex justify-between items-center transition-opacity">
-                    <div className="flex gap-2">
-                        {client.telefone && (
-                            <>
-                                <button onClick={(e) => handleWhatsApp(client, e)} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors" title="WhatsApp"><MessageCircle className="h-4 w-4" /></button>
-                                <button onClick={(e) => handle3CX(client, e)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors" title="Ligar"><Phone className="h-4 w-4" /></button>
-                            </>
-                        )}
-                        {client.email && (
-                            <button onClick={(e) => handleEmail(client, e)} className="p-1.5 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors" title="Email"><Mail className="h-4 w-4" /></button>
-                        )}
-                    </div>
-                    <div className="flex gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); openEditModal(client); }} className="p-1.5 text-gray-500 hover:text-[#112240] rounded-md transition-colors" title="Editar"><Pencil className="h-4 w-4" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(client); }} className="p-1.5 text-gray-400 hover:text-red-600 rounded-md transition-colors" title="Excluir"><Trash2 className="h-4 w-4" /></button>
-                    </div>
-                </div>
-
+        {processedClients.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+                <Search className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                <p>Nenhum cliente encontrado com os filtros atuais.</p>
+                <button 
+                    onClick={() => {setSearchTerm(''); setFilterBrinde(''); setFilterSocio('');}}
+                    className="mt-2 text-blue-600 text-sm font-bold hover:underline"
+                >
+                    Limpar tudo
+                </button>
             </div>
-        ))}
+        )}
       </div>
-
-      {processedClients.length === 0 && (
-          <div className="text-center py-12 text-gray-400">
-              <Search className="h-12 w-12 mx-auto mb-3 opacity-20" />
-              <p>Nenhum cliente encontrado com os filtros atuais.</p>
-              <button 
-                onClick={() => {setSearchTerm(''); setFilterBrinde(''); setFilterSocio('');}}
-                className="mt-2 text-blue-600 text-sm font-bold hover:underline"
-              >
-                Limpar tudo
-              </button>
-          </div>
-      )}
 
       <NewClientModal 
         isOpen={isModalOpen} 
