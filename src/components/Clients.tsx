@@ -490,25 +490,25 @@ Equipe Salomão Advogados`)
                         <div 
                             key={client.id || client.email} 
                             onClick={() => openEditModal(client)} 
-                            className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-xl hover:border-blue-200 transition-all duration-300 relative group cursor-pointer animate-fadeIn flex flex-col justify-between h-full overflow-hidden"
+                            className="bg-white rounded-2xl shadow-sm border border-gray-200 p-3.5 hover:shadow-xl hover:border-blue-200 transition-all duration-300 relative group cursor-pointer animate-fadeIn flex flex-col justify-between overflow-hidden"
                         >
                             {/* Barra lateral colorida de acordo com o brinde */}
                             <div className={`absolute left-0 top-0 w-1 h-full ${colors.bar}`}></div>
 
                             {/* Header do Card */}
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex gap-3 overflow-hidden flex-1">
+                            <div className="flex items-start justify-between mb-2.5">
+                                <div className="flex gap-2.5 overflow-hidden flex-1">
                                     {/* Avatar com gradiente */}
-                                    <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-white font-black text-lg flex-shrink-0 shadow-lg ${colors.avatar}`}>
+                                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center text-white font-black text-base flex-shrink-0 shadow-lg ${colors.avatar}`}>
                                         {client.nome?.charAt(0)?.toUpperCase() || '?'}
                                     </div>
                                     
                                     <div className="overflow-hidden flex-1">
-                                        <h3 className="text-base font-black text-gray-900 truncate leading-tight mb-0.5" title={client.nome}>
+                                        <h3 className="text-sm font-black text-gray-900 truncate leading-tight" title={client.nome}>
                                             {client.nome}
                                         </h3>
-                                        <div className="flex items-center gap-1.5 text-xs text-gray-500 truncate">
-                                            <Briefcase className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <div className="flex items-center gap-1.5 text-xs text-gray-500 truncate mt-0.5">
+                                            <Briefcase className="h-3 w-3 flex-shrink-0" />
                                             <span className="truncate">{client.empresa || 'Sem empresa'}</span>
                                         </div>
                                     </div>
@@ -524,11 +524,11 @@ Equipe Salomão Advogados`)
                             </div>
                             
                             {/* Informações em cards menores */}
-                            <div className="space-y-2 mb-3">
+                            <div className="space-y-2 mb-2.5">
                                 {/* Sócio */}
-                                <div className="bg-gradient-to-r from-blue-50 to-blue-50/50 rounded-lg p-2.5 border border-blue-100">
+                                <div className="bg-gradient-to-r from-blue-50 to-blue-50/50 rounded-lg p-2 border border-blue-100">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 text-xs text-blue-700">
+                                        <div className="flex items-center gap-1.5 text-xs text-blue-700">
                                             <div className="bg-blue-100 p-1 rounded-md">
                                                 <Info className="h-3 w-3" />
                                             </div>
@@ -540,26 +540,18 @@ Equipe Salomão Advogados`)
                                     </div>
                                 </div>
 
-                                {/* Cargo e Local em grid */}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
-                                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mb-1">
-                                            <User className="h-3 w-3" />
-                                            <span>Cargo</span>
+                                {/* Empresa com mesmo destaque do Sócio */}
+                                <div className="bg-gradient-to-r from-purple-50 to-purple-50/50 rounded-lg p-2 border border-purple-100">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5 text-xs text-purple-700">
+                                            <div className="bg-purple-100 p-1 rounded-md">
+                                                <Briefcase className="h-3 w-3" />
+                                            </div>
+                                            <span className="font-medium">Empresa</span>
                                         </div>
-                                        <p className="font-bold text-xs text-gray-900 truncate" title={client.cargo}>
-                                            {client.cargo || '-'}
-                                        </p>
-                                    </div>
-
-                                    <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
-                                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mb-1">
-                                            <MapPin className="h-3 w-3" />
-                                            <span>Local</span>
-                                        </div>
-                                        <p className="font-bold text-xs text-gray-900 truncate" title={`${client.cidade || ''}/${client.estado || ''}`}>
-                                            {client.cidade || client.estado ? `${client.cidade || ''}/${client.estado || ''}` : '-'}
-                                        </p>
+                                        <span className="font-bold text-purple-900 text-xs truncate ml-2 max-w-[140px]" title={client.empresa}>
+                                            {client.empresa || '-'}
+                                        </span>
                                     </div>
                                 </div>
 
