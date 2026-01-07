@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { 
   Plus, Search, X, Filter, ArrowUpDown, Check, 
   MessageCircle, Trash2, Pencil, Mail, Phone, 
-  Briefcase, User, Gift, Info, MapPin // Adicionei os ícones que o card antigo usava
+  User, Info, MapPin 
 } from 'lucide-react'
 import { Menu, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
@@ -114,7 +114,6 @@ export function Clients({ initialFilters }: ClientsProps) {
     setIsModalOpen(true)
   }
 
-  // --- AÇÕES DE CONTATO ---
   const handleWhatsApp = (client: ClientData, e?: React.MouseEvent) => {
     if(e) { e.preventDefault(); e.stopPropagation(); }
     const cleanPhone = (client.telefone || '').replace(/\D/g, '');
@@ -144,10 +143,10 @@ export function Clients({ initialFilters }: ClientsProps) {
   )
 
   return (
-    // CORREÇÃO: h-full flex flex-col para permitir que o grid interno role
+    // 'h-full flex flex-col' Garante que a tela ocupe 100% da altura e permita rolagem interna
     <div className="h-full flex flex-col gap-4">
       
-      {/* HEADER FIXO NO TOPO DO MÓDULO */}
+      {/* HEADER FIXO */}
       <div className="flex-shrink-0 flex flex-col gap-4">
         
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
@@ -260,15 +259,14 @@ export function Clients({ initialFilters }: ClientsProps) {
 
       </div>
 
-      {/* ÁREA DE ROLAGEM DOS CARDS (flex-1 overflow-auto) */}
+      {/* ÁREA DE ROLAGEM E GRD (4 COLUNAS) */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 pb-4">
         
-        {/* CORREÇÃO: Grid com 4 colunas (xl:grid-cols-4) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {processedClients.map((client) => (
                 <div key={client.id || client.email} onClick={() => openEditModal(client)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all relative group cursor-pointer animate-fadeIn flex flex-col justify-between h-full">
                     
-                    {/* CABEÇALHO DO CARD */}
+                    {/* CABEÇALHO */}
                     <div className="flex items-start justify-between mb-3">
                         <div className="flex gap-3 overflow-hidden">
                             <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-[#112240] font-bold border border-gray-200 flex-shrink-0">
@@ -285,7 +283,7 @@ export function Clients({ initialFilters }: ClientsProps) {
                         </span>
                     </div>
                     
-                    {/* CORPO DO CARD - DESIGN DETALHADO RESTAURADO */}
+                    {/* CORPO */}
                     <div className="bg-gray-50 rounded-md p-2.5 mb-3 text-xs space-y-2 border border-gray-100">
                         <div className="flex justify-between items-center border-b border-gray-200 pb-1.5">
                             <div className="flex items-center gap-1.5 text-gray-500">
@@ -314,10 +312,9 @@ export function Clients({ initialFilters }: ClientsProps) {
                         </div>
                     </div>
 
-                    {/* RODAPÉ DO CARD - AÇÕES FIXAS COLORIDAS */}
+                    {/* RODAPÉ (BOTÕES DE AÇÃO) */}
                     <div className="border-t border-gray-100 pt-3 flex justify-between items-center mt-auto">
                         <div className="flex gap-2">
-                            {/* Renderização condicional para botões coloridos */}
                             {client.telefone && (
                                 <>
                                     <button onClick={(e) => handleWhatsApp(client, e)} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors" title="WhatsApp">
@@ -335,7 +332,6 @@ export function Clients({ initialFilters }: ClientsProps) {
                             )}
                         </div>
                         
-                        {/* Ações de Edição */}
                         <div className="flex gap-1">
                             <button onClick={(e) => { e.stopPropagation(); openEditModal(client); }} className="p-1.5 text-gray-400 hover:text-[#112240] hover:bg-gray-100 rounded-md transition-colors" title="Editar">
                                 <Pencil className="h-3.5 w-3.5" />
