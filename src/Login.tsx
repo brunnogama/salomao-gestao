@@ -71,7 +71,8 @@ export default function Login() {
                   required
                   value={emailPrefix}
                   onChange={(e) => setEmailPrefix(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                  className="block flex-1 border-0 bg-transparent py-3 pl-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6"
+                  // Adicionado 'caret-gray-900' para mudar a cor do cursor
+                  className="block flex-1 border-0 bg-transparent py-3 pl-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 caret-gray-900 sm:text-sm sm:leading-6"
                   placeholder="nome.sobrenome"
                 />
                 <span className="flex select-none items-center bg-gray-100 px-3 text-gray-500 sm:text-sm font-medium border-l border-gray-200">
@@ -94,7 +95,8 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full border-0 bg-transparent py-3 pl-10 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6"
+                  // Adicionado 'caret-gray-900' também para o campo de senha
+                  className="block w-full border-0 bg-transparent py-3 pl-10 text-gray-900 placeholder:text-gray-400 focus:ring-0 caret-gray-900 sm:text-sm sm:leading-6"
                   placeholder="••••••••"
                 />
               </div>
