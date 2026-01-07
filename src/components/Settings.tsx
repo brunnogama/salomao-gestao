@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { 
   Download, Upload, FileSpreadsheet, CheckCircle, AlertCircle, 
   Users, Pencil, Trash2, Save, RefreshCw, 
-  AlertTriangle, History, Building, Copyright,
-  Shield, UserPlus, Ban, Check, Lock
+  AlertTriangle, History, Copyright, Code,
+  Shield, UserPlus, Ban, Check, Lock, Building
 } from 'lucide-react'
 import { utils, read, writeFile } from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -67,17 +67,6 @@ export function Settings() {
             'Bloqueio/Desbloqueio de acesso.',
             'Níveis de permissão.'
         ]
-    },
-    {
-        version: '1.2.0',
-        date: '02/01/2026',
-        type: 'improvement',
-        title: 'Melhorias de Performance',
-        items: [
-            'Otimização no carregamento de clientes.',
-            'Novos filtros no Dashboard.',
-            'Exportação Excel corrigida.'
-        ]
     }
   ]
 
@@ -126,7 +115,7 @@ export function Settings() {
             nome: u.nome || u.email.split('@')[0],
             email: u.email,
             cargo: u.cargo || 'Colaborador',
-            ativo: u.ativo !== false // Default true
+            ativo: u.ativo !== false 
         })))
     }
     setLoadingUsers(false)
@@ -342,8 +331,6 @@ export function Settings() {
   const getVersionColor = (type: string) => {
       switch(type) {
           case 'feature': return 'bg-green-100 text-green-700 border-green-200'
-          case 'improvement': return 'bg-blue-100 text-blue-700 border-blue-200'
-          case 'fix': return 'bg-orange-100 text-orange-700 border-orange-200'
           default: return 'bg-gray-100 text-gray-700 border-gray-200'
       }
   }
@@ -509,7 +496,7 @@ export function Settings() {
                                         autoFocus
                                         className="text-sm font-bold bg-white border border-purple-300 rounded px-2 py-0.5 w-full outline-none"
                                         defaultValue={socio.nome}
-                                        onBlur={() => handleUpdateSocio(socio.nome)} // Correção aqui
+                                        onBlur={() => handleUpdateSocio(socio.nome)}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 setNewSocioName(e.currentTarget.value)
@@ -608,20 +595,30 @@ export function Settings() {
           </button>
       </div>
 
-      {/* --- CRÉDITOS & VERSÃO --- */}
+      {/* --- CRÉDITOS, VERSÃO E RODAPÉ (RESTAURADO) --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-gray-200">
         
         {/* LOGO & DIREITOS */}
-        <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 text-[#112240]">
-                <img src="/logo-salomao.png" alt="Salomão" className="h-8 w-auto opacity-80" />
+        <div className="flex flex-col justify-between gap-4 h-full">
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2 text-[#112240]">
+                    <img src="/logo-salomao.png" alt="Salomão" className="h-8 w-auto opacity-80" />
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed max-w-xs">
+                    Sistema de gestão desenvolvido exclusivamente para Salomão Advogados.
+                </p>
             </div>
-            <p className="text-xs text-gray-500 leading-relaxed max-w-xs">
-                Sistema de gestão desenvolvido exclusivamente para Salomão Advogados.
-                Todos os direitos reservados.
-            </p>
-            <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
-                <Copyright className="h-3 w-3" /> 2024-2026
+            
+            {/* RODAPÉ COM ÍCONES RESTAURADOS */}
+            <div className="flex flex-col gap-2 mt-auto">
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
+                    <Copyright className="h-3 w-3" /> 
+                    <span>{new Date().getFullYear()} Todos os direitos reservados.</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
+                     <Code className="h-3 w-3" />
+                     <span>Desenvolvido por <strong>Brunno Gama</strong></span>
+                </div>
             </div>
         </div>
 
