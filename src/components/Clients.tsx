@@ -278,15 +278,14 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
     
     const message = `Olá Sr(a). ${client.nome}.
 
-Somos do escritório Salomão Advogados e gostaríamos de confirmar seus dados cadastrais para o envio do brinde de final de ano.
+Somos do escritório Salomão Advogados e gostaríamos de confirmar seus dados cadastrais.
 
 📋 *Dados Cadastrados:*
 • Nome: ${client.nome}
 • Empresa: ${client.empresa || 'Não informado'}
 • Cargo: ${client.cargo || 'Não informado'}
-• Brinde: ${client.tipo_brinde} (${client.quantidade}x)
 
-📍 *Endereço de Entrega:*
+📍 *Endereço:*
 • CEP: ${client.cep || 'Não informado'}
 • Endereço: ${client.endereco || 'Não informado'}, ${client.numero || 'S/N'}
 ${client.complemento ? `• Complemento: ${client.complemento}` : ''}
@@ -315,7 +314,7 @@ Equipe Salomão Advogados`
     const subject = encodeURIComponent("Confirmação de Dados Cadastrais - Salomão Advogados")
     const body = encodeURIComponent(`Prezado(a) Sr(a). ${client.nome},
 
-Somos do escritório Salomão Advogados e gostaríamos de confirmar seus dados cadastrais para o envio do brinde de final de ano.
+Somos do escritório Salomão Advogados e gostaríamos de confirmar seus dados cadastrais.
 
 DADOS CADASTRADOS:
 • Nome: ${client.nome}
@@ -323,10 +322,9 @@ DADOS CADASTRADOS:
 • Cargo: ${client.cargo || 'Não informado'}
 • Telefone: ${client.telefone || 'Não informado'}
 • E-mail: ${client.email}
-• Brinde: ${client.tipo_brinde} (${client.quantidade}x)
 • Sócio Responsável: ${client.socio || 'Não informado'}
 
-ENDEREÇO DE ENTREGA:
+ENDEREÇO:
 • CEP: ${client.cep || 'Não informado'}
 • Endereço: ${client.endereco || 'Não informado'}, ${client.numero || 'S/N'}
 ${client.complemento ? `• Complemento: ${client.complemento}\n` : ''}• Bairro: ${client.bairro || 'Não informado'}
