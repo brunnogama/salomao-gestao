@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { 
   Download, Upload, FileSpreadsheet, CheckCircle, AlertCircle, 
   Users, Pencil, Trash2, Save, RefreshCw, 
-  AlertTriangle, History, Copyright, Code,
-  Shield, UserPlus, Ban, Check, Lock, Building
+  AlertTriangle, History, Code, Building, Copyright,
+  Shield, UserPlus, Ban, Check, Lock
 } from 'lucide-react'
 import { utils, read, writeFile } from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -26,18 +26,20 @@ export function Settings() {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' })
   
-  // Estados
+  // --- GESTÃO DE SÓCIOS ---
   const [sociosStats, setSociosStats] = useState<SocioStats[]>([])
   const [loadingSocios, setLoadingSocios] = useState(false)
   const [editingSocio, setEditingSocio] = useState<string | null>(null)
   const [newSocioName, setNewSocioName] = useState('')
 
+  // --- GESTÃO DE USUÁRIOS ---
   const [users, setUsers] = useState<AppUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [isUserModalOpen, setIsUserModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<AppUser | null>(null)
   const [userForm, setUserForm] = useState({ nome: '', email: '', cargo: 'Colaborador' })
 
+  // --- GESTÃO MAGISTRADOS ---
   const [magistradosConfig, setMagistradosConfig] = useState({ pin: '', emails: '' })
   const [loadingConfig, setLoadingConfig] = useState(false)
 
@@ -64,6 +66,7 @@ export function Settings() {
   }, [])
 
   // --- FETCH FUNCTIONS ---
+
   const fetchMagistradosConfig = async () => {
     const { data } = await supabase.from('config_magistrados').select('*').single()
     if (data) {
@@ -77,6 +80,7 @@ export function Settings() {
   const fetchSocios = async () => {
     setLoadingSocios(true)
     const { data: clients } = await supabase.from('clientes').select('socio')
+    
     if (clients) {
         const counts: Record<string, number> = {}
         clients.forEach((c: any) => {
@@ -106,10 +110,29 @@ export function Settings() {
     setLoadingUsers(false)
   }
 
-  // --- ACTIONS ---
+  // --- ACTIONS: FUNÇÕES AUXILIARES (DEFINIDAS ANTES DO USO) ---
+
+  const openUserModal = (user?: AppUser) => {
+    if (user) {
+        setEditingUser(user)
+        setUserForm({ nome: user.nome, email: user.email, cargo: user.cargo })
+    } else {
+        setEditingUser(null)
+        setUserForm({ nome: '', email: '', cargo: 'Colaborador' })
+    }
+    setIsUserModalOpen(true)
+  }
+
+  const getVersionColor = (type: string) => {
+      return type === 'feature' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-200'
+  }
+
+  // --- ACTIONS: MAGISTRADOS ---
+
   const handleSaveConfigMagistrados = async () => {
     setLoadingConfig(true)
     const emailsArray = magistradosConfig.emails.split(',').map(e => e.trim()).filter(e => e)
+    
     const { data: current } = await supabase.from('config_magistrados').select('id').single()
     
     if (current) {
@@ -127,8 +150,14 @@ export function Settings() {
     setLoadingConfig(false)
   }
 
+  // --- ACTIONS: SÓCIOS ---
+
   const handleUpdateSocio = async (oldName: string) => {
-    if (!newSocioName.trim() || newSocioName === oldName) { setEditingSocio(null); return; }
+    if (!newSocioName.trim() || newSocioName === oldName) {
+        setEditingSocio(null)
+        return
+    }
+
     if (confirm(`Renomear "${oldName}" para "${newSocioName}"?`)) {
         setLoadingSocios(true)
         await supabase.from('clientes').update({ socio: newSocioName }).eq('socio', oldName)
@@ -147,8 +176,11 @@ export function Settings() {
     }
   }
 
+  // --- ACTIONS: USUÁRIOS ---
+
   const handleSaveUser = async () => {
     if (!userForm.email) return alert("E-mail obrigatório")
+
     try {
         if (editingUser) {
              await supabase.from('usuarios_permitidos').update(userForm).eq('id', editingUser.id)
@@ -157,7 +189,9 @@ export function Settings() {
         }
         setIsUserModalOpen(false)
         fetchUsers()
-    } catch (e: any) { alert("Erro: " + e.message) }
+    } catch (e: any) {
+        alert("Erro: " + e.message)
+    }
   }
 
   const handleToggleActive = async (user: AppUser) => {
@@ -172,7 +206,8 @@ export function Settings() {
     }
   }
 
-  // --- FUNÇÃO RESETAR SISTEMA (COM DEBUG) ---
+  // --- ACTIONS: RESET DO SISTEMA ---
+
   const handleSystemReset = async () => {
     console.log("[DEBUG] Botão Reset acionado.");
 
@@ -184,23 +219,24 @@ export function Settings() {
             setStatus({ type: null, message: 'Limpando base de dados...' })
 
             try {
-                console.log("[DEBUG] Apagando Magistrados...");
+                // Tenta apagar Magistrados
                 const { error: err1 } = await supabase.from('magistrados').delete().neq('id', 0)
                 if (err1) throw err1
 
-                console.log("[DEBUG] Apagando Clientes...");
+                // Tenta apagar Clientes
                 const { error: err2 } = await supabase.from('clientes').delete().neq('id', 0)
                 if (err2) throw err2
 
                 console.log("[DEBUG] Sucesso!");
                 setStatus({ type: 'success', message: 'Sistema resetado com sucesso!' })
                 await logAction('RESET', 'SISTEMA', 'Resetou toda a base de dados')
+                
                 fetchSocios()
                 
             } catch (error: any) {
                 console.error("[DEBUG] Erro no reset:", error)
                 setStatus({ type: 'error', message: 'Erro: ' + error.message })
-                alert("Erro ao resetar (veja o console): " + error.message);
+                alert("Erro ao resetar: " + error.message + "\n\n(Verifique se rodou o script SQL de permissões)");
             } finally {
                 setLoading(false)
             }
@@ -262,10 +298,6 @@ export function Settings() {
       setLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
-  }
-
-  const getVersionColor = (type: string) => {
-      return type === 'feature' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-200'
   }
 
   return (
@@ -428,7 +460,7 @@ export function Settings() {
                     <div key={log.version} className="relative pl-10">
                         <div className="absolute left-0 top-1.5 h-5 w-5 rounded-full border-4 border-white bg-gray-300 shadow-sm z-10"></div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
-                            <span className="px-2 py-0.5 text-[10px] font-black rounded uppercase border w-fit bg-green-100 text-green-700 border-green-200">v{log.version}</span>
+                            <span className={`px-2 py-0.5 text-[10px] font-black rounded uppercase border w-fit ${getVersionColor(log.type)}`}>v{log.version}</span>
                             <span className="text-xs text-gray-400 font-medium">{log.date}</span>
                         </div>
                         <h4 className="font-bold text-gray-800 text-sm mb-2">{log.title}</h4>
