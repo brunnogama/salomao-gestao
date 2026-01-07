@@ -62,7 +62,8 @@ export default function Login() {
               <label className="block text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">
                 Usuário Corporativo
               </label>
-              <div className="flex rounded-lg shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-[#112240] overflow-hidden">
+              {/* ALTERAÇÃO 1: Mudei ring-[#112240] para ring-gray-400 (Borda cinza ao focar) */}
+              <div className="flex rounded-lg shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-gray-400 overflow-hidden">
                 <div className="flex items-center pl-3 text-gray-400">
                   <User className="h-5 w-5" />
                 </div>
@@ -71,8 +72,9 @@ export default function Login() {
                   required
                   value={emailPrefix}
                   onChange={(e) => setEmailPrefix(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                  // Adicionado 'caret-gray-900' para mudar a cor do cursor
-                  className="block flex-1 border-0 bg-transparent py-3 pl-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 caret-gray-900 sm:text-sm sm:leading-6"
+                  // ALTERAÇÃO 2: Adicionei style={{ caretColor: 'black' }} para forçar cursor preto
+                  style={{ caretColor: 'black' }}
+                  className="block flex-1 border-0 bg-transparent py-3 pl-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6"
                   placeholder="nome.sobrenome"
                 />
                 <span className="flex select-none items-center bg-gray-100 px-3 text-gray-500 sm:text-sm font-medium border-l border-gray-200">
@@ -86,7 +88,8 @@ export default function Login() {
               <label className="block text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">
                 Senha
               </label>
-              <div className="relative rounded-lg shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-[#112240]">
+              {/* ALTERAÇÃO 1: Mudei ring-[#112240] para ring-gray-400 */}
+              <div className="relative rounded-lg shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-gray-400">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
                   <Lock className="h-5 w-5" />
                 </div>
@@ -95,8 +98,9 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  // Adicionado 'caret-gray-900' também para o campo de senha
-                  className="block w-full border-0 bg-transparent py-3 pl-10 text-gray-900 placeholder:text-gray-400 focus:ring-0 caret-gray-900 sm:text-sm sm:leading-6"
+                  // ALTERAÇÃO 2: Cursor preto forçado via style
+                  style={{ caretColor: 'black' }}
+                  className="block w-full border-0 bg-transparent py-3 pl-10 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6"
                   placeholder="••••••••"
                 />
               </div>
