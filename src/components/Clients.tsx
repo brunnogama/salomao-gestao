@@ -114,18 +114,25 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
     return result
   }, [clients, searchTerm, filterSocio, filterBrinde, sortOrder])
 
-  // --- FUNÇÃO DE DELETAR ---
+  // --- DELETE FUNCTION (Melhorada) ---
   const handleDelete = async (client: ClientData) => {
-    if (!client.id) return window.alert("Erro: Registo sem ID. Atualize a página.")
+    if (!client.id) return window.alert("Erro: Registro sem ID. Atualize a página.")
 
     if (window.confirm(`Tem a certeza que deseja excluir permanentemente: ${client.nome}?`)) {
         try {
+            console.log(`Tentando excluir ID: ${client.id} da tabela ${tableName}`);
+            
             const { error } = await supabase.from(tableName).delete().eq('id', client.id)
             
             if (error) {
-                // Erro de permissão comum
+                console.error("Erro Supabase Detalhado:", error);
+                // Tratamento específico para erro de Foreign Key (Vínculos)
+                if (error.code === '23503') {
+                    throw new Error("Não é possível excluir este cliente pois ele possui Tarefas ou Logs vinculados. Peça ao administrador para limpar os vínculos.");
+                }
+                // Tratamento para permissão (RLS)
                 if (error.code === '42501') {
-                    throw new Error("Permissão negada. Verifique o RLS no Supabase.")
+                    throw new Error("Permissão negada. Verifique as configurações de segurança (RLS) no Supabase.");
                 }
                 throw error
             }
@@ -134,12 +141,12 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
             await logAction('EXCLUIR', tableName.toUpperCase(), `Excluiu: ${client.nome}`)
             
         } catch (error: any) {
-            window.alert(`Falha ao excluir: ${error.message}`)
+            window.alert(`FALHA AO EXCLUIR:\n${error.message || error}`)
         }
     }
   }
 
-  // --- FUNÇÃO DE IMPORTAR ---
+  // --- IMPORT FUNCTION (Melhorada) ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -162,7 +169,6 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
       const { data: { user } } = await supabase.auth.getUser()
       const userEmail = user?.email || 'Importação'
 
-      // Normaliza as chaves
       const normalizeKeys = (obj: any) => {
           const newObj: any = {};
           Object.keys(obj).forEach(key => {
@@ -317,12 +323,11 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
 
   return (
     <div className="h-full flex flex-col gap-4">
-      {/* Input de arquivo invisível para a importação */}
       <input 
         type="file" 
-        ref={fileInputRef}
-        onChange={handleFileUpload}
-        accept=".xlsx, .xls"
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        accept=".xlsx, .xls" 
         className="hidden" 
       />
 
@@ -331,7 +336,7 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
             <div className="pl-2">
                 <p className="text-sm font-medium text-gray-500">
-                    <span className="font-bold text-[#112240]">{processedClients.length}</span> registos
+                    <span className="font-bold text-[#112240]">{processedClients.length}</span> registros
                 </p>
             </div>
             
@@ -394,7 +399,7 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
                 </div>
 
                 <button onClick={() => { setClientToEdit(null); setIsModalOpen(true); }} className="flex items-center gap-2 bg-[#112240] hover:bg-[#1a3a6c] text-white px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-colors shadow-sm whitespace-nowrap">
-                    <Plus className="h-4 w-4" /><span className="hidden sm:inline">Novo Registo</span>
+                    <Plus className="h-4 w-4" /><span className="hidden sm:inline">Novo Registro</span>
                 </button>
             </div>
         </div>
