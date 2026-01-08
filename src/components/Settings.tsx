@@ -17,13 +17,6 @@ interface AppUser {
   ativo: boolean;
 }
 
-// === CHANGELOG COM VERSIONAMENTO SEMÂNTICO ===
-// Versão Atual: 1.5.0
-// Formato: MAJOR.MINOR.PATCH
-// - MAJOR (X): Mudanças radicais na arquitetura ou breaking changes
-// - MINOR (X.X): Novas funcionalidades
-// - PATCH (X.X.X): Correções de bugs
-
 const CHANGELOG = [
   {
     version: '1.5.0',
@@ -31,11 +24,10 @@ const CHANGELOG = [
     type: 'minor',
     title: 'Modal LGPD e Simplificação de Interface',
     changes: [
-      'Adicionado modal de boas-vindas com informações sobre LGPD e confidencialidade',
-      'Simplificação dos cards de clientes (removida empresa duplicada e barra lateral)',
-      'Modo visualização/edição no modal de clientes',
-      'Histórico do modal com design elegante (cards coloridos)',
-      'Removida gestão de sócios de configurações'
+      'Adicionado modal de boas-vindas com informações sobre LGPD',
+      'Simplificação dos cards de clientes',
+      'Modo visualização/edição no modal',
+      'Removida gestão de sócios'
     ]
   },
   {
@@ -44,46 +36,39 @@ const CHANGELOG = [
     type: 'patch',
     title: 'Correções e Melhorias de UX',
     changes: [
-      'Botão "Limpar Filtros" com destaque visual (pulsante)',
-      'Padronização de fontes entre BrindeSelector e SocioSelector',
-      'Tick de seleção movido para o lado correto',
-      'Cards do dashboard maiores e melhor distribuídos'
+      'Botão "Limpar Filtros" com destaque visual',
+      'Padronização de fontes',
+      'Cards do dashboard melhorados'
     ]
   },
   {
     version: '1.4.1',
     date: '07/01/2026',
     type: 'patch',
-    title: 'Correções de Build e Dependências',
+    title: 'Correções de Build',
     changes: [
-      'Correção de erro de dependências (@hello-pangea/dnd)',
-      'Fix de build no Cloudflare Pages',
-      'Atualização do package.json'
+      'Fix de build no Cloudflare',
+      'Atualização de dependências'
     ]
   },
   {
     version: '1.4.0',
     date: '07/01/2026',
     type: 'minor',
-    title: 'Sistema de Tipos de Brinde Dinâmico',
+    title: 'Sistema de Tipos de Brinde',
     changes: [
-      'CRUD completo para tipos de brinde (criar, editar, excluir)',
-      'BrindeSelector com menu dropdown avançado',
-      'Cascade update ao editar tipos',
-      'Soft delete para preservar histórico'
+      'CRUD completo para tipos de brinde',
+      'BrindeSelector avançado'
     ]
   },
   {
     version: '1.3.0',
     date: '07/01/2026',
     type: 'minor',
-    title: 'Melhorias Visuais nos Cards',
+    title: 'Melhorias Visuais',
     changes: [
-      'Redesign premium dos cards de clientes',
-      'Avatares com gradientes coloridos',
-      'Sidebar colorida por tipo de brinde',
-      'Animações hover melhoradas',
-      'Cards mais compactos e eficientes'
+      'Redesign dos cards',
+      'Avatares com gradientes'
     ]
   },
   {
@@ -92,22 +77,18 @@ const CHANGELOG = [
     type: 'minor',
     title: 'Restauração de Funcionalidades',
     changes: [
-      'Restauração de templates WhatsApp e Email completos',
-      'SocioSelector reintegrado ao NewClientModal',
-      'Dashboard com layout de linha única',
-      'Filtro de tipos de brinde antigos'
+      'Templates WhatsApp/Email',
+      'Dashboard otimizado'
     ]
   },
   {
     version: '1.1.0',
     date: '07/12/2025',
     type: 'minor',
-    title: 'Módulo Magistrados e Segurança',
+    title: 'Módulo Magistrados',
     changes: [
-      'Novo módulo restrito para Magistrados',
-      'Sistema de PIN e controle de acesso',
-      'Auditoria visual aprimorada',
-      'Tela de PIN com design moderno'
+      'Sistema de PIN',
+      'Controle de acesso'
     ]
   },
   {
@@ -117,10 +98,7 @@ const CHANGELOG = [
     title: 'Lançamento Inicial',
     changes: [
       'Sistema CRM completo',
-      'Gestão de clientes e brindes',
-      'Dashboard com métricas',
-      'Sistema de autenticação',
-      'Kanban de tarefas'
+      'Dashboard com métricas'
     ]
   }
 ]
@@ -129,18 +107,15 @@ export function Settings() {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' })
   
-  // --- GESTÃO DE USUÁRIOS ---
   const [users, setUsers] = useState<AppUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [isUserModalOpen, setIsUserModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<AppUser | null>(null)
   const [userForm, setUserForm] = useState({ nome: '', email: '', cargo: 'Colaborador' })
 
-  // --- GESTÃO MAGISTRADOS ---
   const [magistradosConfig, setMagistradosConfig] = useState({ pin: '', emails: '' })
   const [loadingConfig, setLoadingConfig] = useState(false)
 
-  // --- CHANGELOG ---
   const [showAllVersions, setShowAllVersions] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -149,8 +124,6 @@ export function Settings() {
     fetchUsers();
     fetchMagistradosConfig();
   }, [])
-
-  // --- FETCH FUNCTIONS ---
 
   const fetchMagistradosConfig = async () => {
     const { data } = await supabase.from('config_magistrados').select('*').single()
@@ -176,8 +149,6 @@ export function Settings() {
     }
     setLoadingUsers(false)
   }
-
-  // --- ACTIONS ---
 
   const openUserModal = (user?: AppUser) => {
     if (user) {
@@ -207,7 +178,7 @@ export function Settings() {
             emails_permitidos: emailsArray
         })
     }
-    alert('Configurações de segurança salvas!')
+    alert('Configurações salvas!')
     setLoadingConfig(false)
   }
 
@@ -238,12 +209,10 @@ export function Settings() {
     }
   }
 
-  // --- ACTIONS: SYSTEM RESET (CORRIGIDO) ---
-
   const handleSystemReset = async () => {
-    if (!confirm('PERIGO: Isso apagará TODOS os dados (Clientes e Magistrados). Tem certeza absoluta?')) return;
+    if (!confirm('PERIGO: Isso apagará TODOS os dados. Tem certeza?')) return;
     
-    const confirmText = prompt('Digite APAGAR para confirmar a exclusão total:')
+    const confirmText = prompt('Digite APAGAR para confirmar:')
     if (confirmText !== 'APAGAR') return;
 
     setLoading(true)
@@ -259,13 +228,12 @@ export function Settings() {
         const { error: err2 } = await supabase.from('clientes').delete().neq('id', 0)
         if (err2) throw err2
 
-        setStatus({ type: 'success', message: 'Sistema resetado com sucesso!' })
-        await logAction('RESET', 'SISTEMA', 'Resetou toda a base de dados')
+        setStatus({ type: 'success', message: 'Sistema resetado!' })
+        await logAction('RESET', 'SISTEMA', 'Resetou toda a base')
         
     } catch (error: any) {
-        console.error("Erro no reset:", error)
+        console.error("Erro:", error)
         setStatus({ type: 'error', message: 'Erro: ' + error.message })
-        alert("Erro ao resetar: " + error.message);
     } finally {
         setLoading(false)
     }
@@ -316,12 +284,12 @@ export function Settings() {
       
       if (error) throw error
       
-      setStatus({ type: 'success', message: `${clientsToInsert.length} clientes importados com sucesso!` })
-      await logAction('IMPORTAR', 'SISTEMA', `Importou ${clientsToInsert.length} clientes via Excel`)
+      setStatus({ type: 'success', message: `${clientsToInsert.length} clientes importados!` })
+      await logAction('IMPORTAR', 'SISTEMA', `Importou ${clientsToInsert.length} clientes`)
 
     } catch (error: any) {
-      console.error('Erro na importação:', error)
-      setStatus({ type: 'error', message: 'Erro ao importar: ' + error.message })
+      console.error('Erro:', error)
+      setStatus({ type: 'error', message: 'Erro: ' + error.message })
     } finally {
       setLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -329,25 +297,25 @@ export function Settings() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-12 space-y-8 relative">
+    <div className="max-w-7xl mx-auto pb-12 space-y-6">
       
-      {/* --- MODAL USUÁRIO --- */}
+      {/* MODAL USUÁRIO */}
       {isUserModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-             <h3 className="text-lg font-bold text-[#112240] mb-4">{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</h3>
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+             <h3 className="text-lg font-bold text-gray-900 mb-4">{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</h3>
              <div className="space-y-3">
                  <div>
-                     <label className="text-xs font-bold text-gray-500">Nome</label>
-                     <input type="text" className="w-full border rounded p-2" value={userForm.nome} onChange={e => setUserForm({...userForm, nome: e.target.value})} />
+                     <label className="text-xs font-bold text-gray-600 uppercase">Nome</label>
+                     <input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 mt-1" value={userForm.nome} onChange={e => setUserForm({...userForm, nome: e.target.value})} />
                  </div>
                  <div>
-                     <label className="text-xs font-bold text-gray-500">E-mail</label>
-                     <input type="email" className="w-full border rounded p-2" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} />
+                     <label className="text-xs font-bold text-gray-600 uppercase">E-mail</label>
+                     <input type="email" className="w-full border border-gray-300 rounded-lg p-2.5 mt-1" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} />
                  </div>
                  <div>
-                     <label className="text-xs font-bold text-gray-500">Cargo</label>
-                     <select className="w-full border rounded p-2" value={userForm.cargo} onChange={e => setUserForm({...userForm, cargo: e.target.value})}>
+                     <label className="text-xs font-bold text-gray-600 uppercase">Cargo</label>
+                     <select className="w-full border border-gray-300 rounded-lg p-2.5 mt-1" value={userForm.cargo} onChange={e => setUserForm({...userForm, cargo: e.target.value})}>
                          <option>Administrador</option>
                          <option>Sócio</option>
                          <option>Colaborador</option>
@@ -355,66 +323,66 @@ export function Settings() {
                  </div>
              </div>
              <div className="flex justify-end gap-3 mt-6">
-                 <button onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancelar</button>
-                 <button onClick={handleSaveUser} className="px-4 py-2 bg-[#112240] text-white rounded font-bold hover:bg-blue-900">Salvar</button>
+                 <button onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">Cancelar</button>
+                 <button onClick={handleSaveUser} className="px-4 py-2 bg-gray-900 text-white rounded-lg font-bold hover:bg-gray-800">Salvar</button>
              </div>
           </div>
         </div>
       )}
 
-      {/* --- CONFIGURAÇÃO: MAGISTRADOS --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* LINHA 1: GESTÃO USUÁRIOS + SEGURANÇA MAGISTRADOS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* COLUNA 1: GESTÃO DE USUÁRIOS */}
+        {/* GESTÃO DE USUÁRIOS */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg text-blue-700"><Users className="h-6 w-6" /></div>
+                  <div className="p-2 bg-gray-100 rounded-lg"><Users className="h-5 w-5 text-gray-700" /></div>
                   <div>
-                      <h3 className="font-bold text-[#112240] text-lg">Gestão de Usuários</h3>
-                      <p className="text-sm text-gray-500">Controle quem tem acesso ao sistema.</p>
+                      <h3 className="font-bold text-gray-900 text-base">Gestão de Usuários</h3>
+                      <p className="text-xs text-gray-500">Controle de acesso ao sistema</p>
                   </div>
               </div>
-              <button onClick={() => openUserModal()} className="flex items-center gap-2 text-sm bg-blue-50 text-blue-700 px-3 py-2 rounded-lg font-bold hover:bg-blue-100 transition-colors">
-                  <UserPlus className="h-4 w-4" /> Novo Usuário
+              <button onClick={() => openUserModal()} className="flex items-center gap-2 text-xs bg-gray-100 text-gray-700 px-3 py-2 rounded-lg font-bold hover:bg-gray-200">
+                  <UserPlus className="h-4 w-4" /> Novo
               </button>
           </div>
 
           <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                   <thead>
-                      <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase">
-                          <th className="py-3 pl-2">Nome</th>
-                          <th className="py-3">Email</th>
-                          <th className="py-3">Cargo</th>
-                          <th className="py-3">Status</th>
-                          <th className="py-3 text-right pr-2">Ações</th>
+                      <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase">
+                          <th className="py-2 px-2 font-semibold">Nome</th>
+                          <th className="py-2 px-2 font-semibold">Email</th>
+                          <th className="py-2 px-2 font-semibold">Status</th>
+                          <th className="py-2 px-2 text-right font-semibold">Ações</th>
                       </tr>
                   </thead>
                   <tbody className="text-sm">
                       {loadingUsers ? (
-                          <tr><td colSpan={5} className="py-4 text-center text-gray-400">Carregando...</td></tr>
+                          <tr><td colSpan={4} className="py-4 text-center text-gray-400 text-xs">Carregando...</td></tr>
                       ) : users.map(user => (
-                          <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                              <td className="py-3 pl-2 font-bold text-gray-700">{user.nome}</td>
-                              <td className="py-3 text-gray-600">{user.email}</td>
-                              <td className="py-3"><span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-bold">{user.cargo}</span></td>
-                              <td className="py-3">
+                          <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50">
+                              <td className="py-2.5 px-2 font-medium text-gray-900 text-xs">{user.nome}</td>
+                              <td className="py-2.5 px-2 text-gray-600 text-xs">{user.email}</td>
+                              <td className="py-2.5 px-2">
                                   {user.ativo ? 
-                                    <span className="flex items-center gap-1 text-green-600 text-xs font-bold"><Check className="h-3 w-3" /> Ativo</span> : 
-                                    <span className="flex items-center gap-1 text-red-500 text-xs font-bold"><Ban className="h-3 w-3" /> Bloqueado</span>
+                                    <span className="inline-flex items-center gap-1 text-green-700 text-xs font-medium"><Check className="h-3 w-3" /> Ativo</span> : 
+                                    <span className="inline-flex items-center gap-1 text-red-600 text-xs font-medium"><Ban className="h-3 w-3" /> Bloqueado</span>
                                   }
                               </td>
-                              <td className="py-3 text-right pr-2 flex justify-end gap-2">
-                                  <button onClick={() => handleToggleActive(user)} title={user.ativo ? "Bloquear" : "Ativar"} className={`p-1.5 rounded hover:bg-gray-200 ${user.ativo ? 'text-green-600' : 'text-red-500'}`}>
-                                      <Shield className="h-4 w-4" />
-                                  </button>
-                                  <button onClick={() => openUserModal(user)} title="Editar" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded">
-                                      <Pencil className="h-4 w-4" />
-                                  </button>
-                                  <button onClick={() => handleDeleteUser(user)} title="Excluir" className="p-1.5 text-red-500 hover:bg-red-50 rounded">
-                                      <Trash2 className="h-4 w-4" />
-                                  </button>
+                              <td className="py-2.5 px-2 text-right">
+                                  <div className="inline-flex gap-1">
+                                      <button onClick={(e) => { e.stopPropagation(); handleToggleActive(user); }} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title={user.ativo ? "Bloquear" : "Ativar"}>
+                                          <Shield className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button onClick={(e) => { e.stopPropagation(); openUserModal(user); }} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title="Editar">
+                                          <Pencil className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(user); }} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title="Excluir">
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                  </div>
                               </td>
                           </tr>
                       ))}
@@ -423,94 +391,76 @@ export function Settings() {
           </div>
         </div>
 
-        {/* COLUNA 2: SEGURANÇA MAGISTRADOS */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-200 p-6">
-        <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-orange-50 rounded-lg text-orange-700"><Lock className="h-6 w-6" /></div>
-            <div>
-                <h3 className="font-bold text-[#112240] text-lg">Segurança: Módulo Magistrados</h3>
-                <p className="text-sm text-gray-500">Controle de acesso à área restrita.</p>
-            </div>
-        </div>
+        {/* SEGURANÇA MAGISTRADOS */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-gray-100 rounded-lg"><Lock className="h-5 w-5 text-gray-700" /></div>
+              <div>
+                  <h3 className="font-bold text-gray-900 text-base">Segurança: Módulo Magistrados</h3>
+                  <p className="text-xs text-gray-500">Controle de acesso à área restrita</p>
+              </div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">PIN de Acesso (4 dígitos)</label>
-                <input 
-                    type="text" 
-                    maxLength={4}
-                    value={magistradosConfig.pin}
-                    onChange={e => setMagistradosConfig({...magistradosConfig, pin: e.target.value.replace(/\D/g,'')})}
-                    className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-orange-500 font-mono text-center tracking-widest text-lg"
-                    placeholder="0000"
-                />
-            </div>
-            <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Emails Permitidos (separar por vírgula)</label>
-                <textarea 
-                    rows={3}
-                    value={magistradosConfig.emails}
-                    onChange={e => setMagistradosConfig({...magistradosConfig, emails: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-orange-500 text-xs"
-                    placeholder="email1@salomao.adv.br, email2@salomao.adv.br"
-                />
-            </div>
-        </div>
-        <div className="mt-4 flex justify-end">
-            <button 
-                onClick={handleSaveConfigMagistrados}
-                disabled={loadingConfig}
-                className="px-4 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
-            >
-                <Save className="h-4 w-4" /> Salvar Segurança
-            </button>
+          <div className="space-y-4">
+              <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase mb-2">PIN de Acesso (4 dígitos)</label>
+                  <input 
+                      type="text" 
+                      maxLength={4}
+                      value={magistradosConfig.pin}
+                      onChange={e => setMagistradosConfig({...magistradosConfig, pin: e.target.value.replace(/\D/g,'')})}
+                      className="w-full border border-gray-300 rounded-lg p-3 font-mono text-center tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="0000"
+                  />
+              </div>
+              <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Emails Permitidos (separar por vírgula)</label>
+                  <textarea 
+                      rows={4}
+                      value={magistradosConfig.emails}
+                      onChange={e => setMagistradosConfig({...magistradosConfig, emails: e.target.value})}
+                      className="w-full border border-gray-300 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="email1@salomao.adv.br, email2@salomao.adv.br"
+                  />
+              </div>
+          </div>
+          <div className="mt-6 flex justify-end">
+              <button 
+                  onClick={handleSaveConfigMagistrados}
+                  disabled={loadingConfig}
+                  className="px-4 py-2.5 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 flex items-center gap-2"
+              >
+                  <Save className="h-4 w-4" /> Salvar
+              </button>
+          </div>
         </div>
       </div>
 
-      {/* LINHA 2: IMPORTAR DADOS + ZONA DE PERIGO */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* LINHA 2: IMPORTAR DADOS + ZONA PERIGO */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* --- IMPORTAÇÃO DE DADOS --- */}
-        <div className="relative bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
-            {/* Header com gradiente */}
-            <div className="bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 p-6">
-                <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-xl">
-                        <FileSpreadsheet className="h-7 w-7 text-white" />
-                    </div>
-                    <div>
-                        <h3 className="font-black text-white text-xl">Importar Dados</h3>
-                        <p className="text-sm text-white/90 font-medium">Adicione clientes em massa via planilha Excel</p>
-                    </div>
+        {/* IMPORTAR DADOS */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-gray-100 rounded-lg"><FileSpreadsheet className="h-5 w-5 text-gray-700" /></div>
+                <div>
+                    <h3 className="font-bold text-gray-900 text-base">Importar Dados</h3>
+                    <p className="text-xs text-gray-500">Adicione clientes em massa via Excel</p>
                 </div>
             </div>
 
-            {/* Corpo */}
-            <div className="p-6 space-y-4">
-                {/* Botão Baixar Modelo - Redesenhado */}
+            <div className="space-y-4">
                 <button 
                     onClick={handleDownloadTemplate}
-                    className="w-full group relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 hover:from-emerald-50 hover:to-green-50 border-2 border-dashed border-gray-300 hover:border-emerald-400 rounded-xl p-5 transition-all duration-300"
+                    className="w-full flex items-center justify-center gap-3 p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-700 hover:border-gray-400 hover:bg-gray-50 font-medium text-sm"
                 >
-                    <div className="flex items-center justify-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-white shadow-sm flex items-center justify-center group-hover:bg-emerald-50 transition-colors">
-                            <Download className="h-5 w-5 text-gray-600 group-hover:text-emerald-600" />
-                        </div>
-                        <div className="text-left">
-                            <p className="text-sm font-bold text-gray-900 group-hover:text-emerald-900">Baixar Planilha Modelo</p>
-                            <p className="text-xs text-gray-500 group-hover:text-emerald-600">Template com campos pré-configurados</p>
-                        </div>
+                    <Download className="h-5 w-5" />
+                    <div className="text-left">
+                        <p className="font-bold">Baixar Planilha Modelo</p>
+                        <p className="text-xs text-gray-500">Template com campos configurados</p>
                     </div>
                 </button>
 
-                {/* Separador */}
-                <div className="flex items-center gap-3">
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">ou</span>
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-                </div>
-
-                {/* Botão Upload - Redesenhado */}
                 <div className="relative">
                     <input 
                         ref={fileInputRef}
@@ -520,328 +470,154 @@ export function Settings() {
                         disabled={loading}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
-                    <div className={`relative overflow-hidden rounded-xl ${
-                        loading ? 'cursor-not-allowed' : 'cursor-pointer'
-                    }`}>
-                        <div className={`flex flex-col items-center justify-center gap-3 py-8 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 text-white rounded-xl transition-all duration-300 ${
-                            loading ? 'opacity-70' : 'hover:shadow-2xl hover:scale-[1.02]'
-                        }`}>
-                            {loading ? (
-                                <>
-                                    <RefreshCw className="h-8 w-8 animate-spin" />
-                                    <span className="text-lg font-bold">Importando...</span>
-                                    <span className="text-sm text-white/80">Processando planilha</span>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                                        <Upload className="h-8 w-8" />
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-lg font-bold">Selecionar Arquivo Excel</p>
-                                        <p className="text-sm text-white/80 mt-1">Arraste ou clique para fazer upload</p>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                        
-                        {/* Brilho animado */}
-                        {!loading && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    <div className={`flex flex-col items-center justify-center gap-3 py-8 bg-gray-900 text-white rounded-lg ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-800 cursor-pointer'}`}>
+                        {loading ? (
+                            <>
+                                <RefreshCw className="h-6 w-6 animate-spin" />
+                                <span className="font-bold">Importando...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Upload className="h-6 w-6" />
+                                <div className="text-center">
+                                    <p className="font-bold">Selecionar Arquivo Excel</p>
+                                    <p className="text-xs text-gray-400 mt-1">Arraste ou clique para upload</p>
+                                </div>
+                            </>
                         )}
                     </div>
-                    
-                    {!loading && (
-                        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500">
-                            <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-                            <span>Formatos aceitos: .xlsx, .xls</span>
-                            <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-                            <span>Nenhum arquivo selecionado</span>
-                        </div>
-                    )}
                 </div>
 
-                {/* Status da Importação - Redesenhado */}
                 {status.type && (
-                    <div className={`relative overflow-hidden p-5 rounded-xl flex items-start gap-4 animate-fadeIn ${
-                        status.type === 'success' 
-                            ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200' 
-                            : 'bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200'
+                    <div className={`p-4 rounded-lg flex items-start gap-3 ${
+                        status.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
                     }`}>
-                        <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
-                            status.type === 'success' ? 'bg-emerald-100' : 'bg-red-100'
-                        }`}>
+                        <div className="flex-shrink-0">
                             {status.type === 'success' ? (
-                                <CheckCircle className="h-6 w-6 text-emerald-600" />
+                                <CheckCircle className="h-5 w-5 text-green-600" />
                             ) : (
-                                <AlertCircle className="h-6 w-6 text-red-600" />
+                                <AlertCircle className="h-5 w-5 text-red-600" />
                             )}
                         </div>
-                        <div className="flex-1">
-                            <p className={`font-bold text-sm ${
-                                status.type === 'success' ? 'text-emerald-900' : 'text-red-900'
-                            }`}>
-                                {status.type === 'success' ? 'Importação Concluída!' : 'Erro na Importação'}
-                            </p>
-                            <p className={`text-sm mt-1 ${
-                                status.type === 'success' ? 'text-emerald-700' : 'text-red-700'
-                            }`}>
-                                {status.message}
-                            </p>
-                        </div>
+                        <p className={`text-sm font-medium ${status.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                            {status.message}
+                        </p>
                     </div>
                 )}
             </div>
         </div>
 
-      </div>
-
-      {/* --- ZONA DE PERIGO --- */}
-      <div className="relative bg-white rounded-2xl shadow-md border-2 border-red-300 overflow-hidden">
-          {/* Header com gradiente vermelho */}
-          <div className="bg-gradient-to-r from-red-500 via-red-600 to-rose-600 p-6">
-              <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-xl">
-                      <AlertTriangle className="h-7 w-7 text-white" />
-                  </div>
-                  <div>
-                      <h3 className="font-black text-white text-xl">Zona de Perigo</h3>
-                      <p className="text-sm text-white/90 font-medium">Ações irreversíveis e permanentes</p>
-                  </div>
-              </div>
-          </div>
-
-          {/* Corpo */}
-          <div className="p-6">
-              {/* Card de aviso */}
-              <div className="bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-5 mb-5">
-                  <div className="flex items-start gap-3">
-                      <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                          <AlertTriangle className="h-5 w-5 text-red-600" />
-                      </div>
-                      <div className="flex-1">
-                          <p className="text-sm font-bold text-red-900 mb-2">⚠️ Atenção: Operação Destrutiva</p>
-                          <ul className="text-xs text-red-700 space-y-1">
-                              <li className="flex items-start gap-2">
-                                  <span className="text-red-500 mt-0.5">•</span>
-                                  <span>Esta ação apagará <strong>TODOS os dados</strong> do sistema</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                  <span className="text-red-500 mt-0.5">•</span>
-                                  <span>Clientes, magistrados e tarefas serão <strong>permanentemente removidos</strong></span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                  <span className="text-red-500 mt-0.5">•</span>
-                                  <span>Não será possível recuperar os dados após a confirmação</span>
-                              </li>
-                          </ul>
-                      </div>
-                  </div>
-              </div>
-
-              {/* Botão de reset */}
-              <button 
-                onClick={handleSystemReset}
-                className="group relative w-full overflow-hidden bg-gradient-to-r from-red-600 via-red-700 to-rose-700 hover:from-red-700 hover:via-red-800 hover:to-rose-800 text-white font-bold rounded-xl shadow-xl shadow-red-900/40 transition-all hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]"
-              >
-                  <div className="relative flex items-center justify-center gap-3 py-5">
-                      <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                          <Trash2 className="h-5 w-5" />
-                      </div>
-                      <div className="text-left">
-                          <p className="text-base font-black">Resetar Sistema Completo</p>
-                          <p className="text-xs text-white/80 font-normal">Apagar todos os dados permanentemente</p>
-                      </div>
-                  </div>
-                  
-                  {/* Brilho animado */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-              </button>
-
-              {/* Nota de segurança */}
-              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
-                  <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-                  <span>Você precisará confirmar digitando "APAGAR"</span>
-                  <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-              </div>
-          </div>
-      </div>
-
-      {/* --- SEÇÃO DE CRÉDITOS --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-        {/* SEÇÃO DE CRÉDITOS */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm">
-            <div className="flex items-center gap-2 mb-6">
-                <Code className="h-5 w-5 text-blue-600" />
-                <h3 className="font-bold text-[#112240] text-lg">Créditos e Informações</h3>
+        {/* ZONA DE PERIGO */}
+        <div className="bg-white rounded-xl shadow-sm border-2 border-red-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-red-50 rounded-lg"><AlertTriangle className="h-5 w-5 text-red-600" /></div>
+                <div>
+                    <h3 className="font-bold text-gray-900 text-base">Zona de Perigo</h3>
+                    <p className="text-xs text-gray-500">Ações irreversíveis</p>
+                </div>
             </div>
 
-            <div className="space-y-6">
-                {/* Desenvolvedor */}
-                <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-black text-lg shadow-md">
-                            M
-                        </div>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-xs font-bold text-red-900 mb-2">⚠️ Atenção</p>
+                <ul className="text-xs text-red-700 space-y-1">
+                    <li>• Apagará TODOS os dados do sistema</li>
+                    <li>• Clientes, magistrados e tarefas serão removidos</li>
+                    <li>• Não é possível recuperar após confirmação</li>
+                </ul>
+            </div>
+
+            <button 
+              onClick={handleSystemReset}
+              className="w-full flex items-center justify-center gap-3 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg"
+            >
+              <Trash2 className="h-5 w-5" />
+              <div className="text-left">
+                  <p>Resetar Sistema</p>
+                  <p className="text-xs font-normal text-red-100">Apagar todos os dados</p>
+              </div>
+            </button>
+
+            <p className="text-center text-xs text-gray-500 mt-3">
+                Você precisará digitar "APAGAR" para confirmar
+            </p>
+        </div>
+      </div>
+
+      {/* LINHA 3: CRÉDITOS + CHANGELOG */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* CRÉDITOS */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+                <Code className="h-5 w-5 text-gray-700" />
+                <h3 className="font-bold text-gray-900 text-base">Créditos e Informações</h3>
+            </div>
+
+            <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-gray-900 text-white flex items-center justify-center font-black">M</div>
                         <div>
-                            <h4 className="font-bold text-gray-900 text-base">Marcio Gama</h4>
-                            <p className="text-sm text-gray-600">Desenvolvedor Full Stack</p>
+                            <p className="font-bold text-gray-900 text-sm">Marcio Gama</p>
+                            <p className="text-xs text-gray-600">Desenvolvedor Full Stack</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Empresa */}
-                <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
-                    <div className="flex items-center gap-3 mb-2">
-                        <Building className="h-5 w-5 text-blue-600" />
-                        <h4 className="font-bold text-gray-900 text-sm">Empresa</h4>
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Building className="h-4 w-4 text-gray-600" />
+                        <p className="font-bold text-gray-900 text-xs">Empresa</p>
                     </div>
-                    <p className="text-base font-bold text-blue-600 ml-8">Flow Metrics</p>
-                    <p className="text-xs text-gray-500 ml-8 mt-1">Soluções em Análise de Dados e Desenvolvimento</p>
+                    <p className="font-bold text-gray-900">Flow Metrics</p>
+                    <p className="text-xs text-gray-600 mt-1">Análise de Dados e Desenvolvimento</p>
                 </div>
 
-                {/* Tecnologias */}
-                <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
-                    <div className="flex items-center gap-3 mb-3">
-                        <Code className="h-5 w-5 text-blue-600" />
-                        <h4 className="font-bold text-gray-900 text-sm">Tecnologias Utilizadas</h4>
-                    </div>
-                    <div className="ml-8 grid grid-cols-2 gap-3">
-                        {/* Frontend */}
-                        <div>
-                            <p className="text-xs font-bold text-gray-700 mb-2">Frontend</p>
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                                    <span className="text-xs text-gray-600">React 18</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                                    <span className="text-xs text-gray-600">TypeScript</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                                    <span className="text-xs text-gray-600">Tailwind CSS</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                                    <span className="text-xs text-gray-600">Vite</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Backend */}
-                        <div>
-                            <p className="text-xs font-bold text-gray-700 mb-2">Backend & Infra</p>
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                    <span className="text-xs text-gray-600">Supabase</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                    <span className="text-xs text-gray-600">PostgreSQL</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                    <span className="text-xs text-gray-600">Cloudflare Pages</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Bibliotecas */}
-                        <div className="col-span-2">
-                            <p className="text-xs font-bold text-gray-700 mb-2">Bibliotecas</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
-                                    <span className="text-xs text-gray-600">Headless UI</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
-                                    <span className="text-xs text-gray-600">Lucide Icons</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
-                                    <span className="text-xs text-gray-600">Recharts</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
-                                    <span className="text-xs text-gray-600">SheetJS (XLSX)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
-                                    <span className="text-xs text-gray-600">React IMask</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
-                                    <span className="text-xs text-gray-600">DnD Kit</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Copyright */}
-                <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-lg p-4 border border-gray-700 shadow-md">
-                    <div className="flex items-center gap-3 text-white">
-                        <Copyright className="h-5 w-5" />
+                <div className="p-4 bg-gray-900 rounded-lg text-white">
+                    <div className="flex items-center gap-2">
+                        <Copyright className="h-4 w-4" />
                         <div>
                             <p className="text-sm font-bold">© 2025-2026 Flow Metrics</p>
-                            <p className="text-xs text-gray-300 mt-1">Todos os direitos reservados</p>
-                            <p className="text-xs text-gray-400 mt-2">
-                                Sistema desenvolvido para <span className="font-semibold text-white">Salomão Advogados</span>
-                            </p>
+                            <p className="text-xs text-gray-400 mt-1">Sistema para Salomão Advogados</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Versão do Sistema */}
-                <div className="bg-white rounded-lg p-3 border border-blue-100">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Shield className="h-4 w-4 text-blue-600" />
-                            <span className="text-xs font-medium text-gray-600">Versão do Sistema</span>
-                        </div>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
-                            v1.5.0
-                        </span>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-gray-600" />
+                        <span className="text-xs font-medium text-gray-600">Versão</span>
                     </div>
+                    <span className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-bold">v1.5.0</span>
                 </div>
             </div>
         </div>
 
-        {/* SEÇÃO DE CHANGELOG */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-6">
-                <History className="h-5 w-5 text-gray-600" />
-                <h3 className="font-bold text-[#112240] text-lg">Histórico de Versões</h3>
+        {/* HISTÓRICO DE VERSÕES */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+                <History className="h-5 w-5 text-gray-700" />
+                <h3 className="font-bold text-gray-900 text-base">Histórico de Versões</h3>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
                 {CHANGELOG.slice(0, showAllVersions ? CHANGELOG.length : 3).map((log) => (
-                    <div key={log.version} className="border-l-4 border-blue-200 pl-4 relative">
-                        {/* Badge de Versão */}
-                        <div className="flex items-center gap-3 mb-2">
-                            <span className={`px-2.5 py-1 text-xs font-black rounded-lg ${
-                                log.type === 'major' ? 'bg-red-100 text-red-700 border border-red-200' :
-                                log.type === 'minor' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                                'bg-green-100 text-green-700 border border-green-200'
+                    <div key={log.version} className="border-l-2 border-gray-300 pl-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className={`px-2 py-0.5 text-xs font-bold rounded ${
+                                log.type === 'major' ? 'bg-red-100 text-red-700' :
+                                log.type === 'minor' ? 'bg-blue-100 text-blue-700' :
+                                'bg-green-100 text-green-700'
                             }`}>
                                 v{log.version}
                             </span>
-                            <span className="text-xs text-gray-500 font-medium">{log.date}</span>
+                            <span className="text-xs text-gray-500">{log.date}</span>
                         </div>
-
-                        {/* Título */}
-                        <h4 className="font-bold text-gray-900 text-sm mb-3">{log.title}</h4>
-
-                        {/* Lista de mudanças */}
-                        <ul className="space-y-1.5">
+                        <h4 className="font-bold text-gray-900 text-sm mb-2">{log.title}</h4>
+                        <ul className="space-y-1">
                             {log.changes.map((change, idx) => (
-                                <li key={idx} className="text-xs text-gray-600 flex items-start gap-2 leading-relaxed">
-                                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+                                <li key={idx} className="text-xs text-gray-600 flex items-start gap-2">
+                                    <span className="text-gray-400 mt-1">•</span>
                                     <span>{change}</span>
                                 </li>
                             ))}
@@ -850,43 +626,15 @@ export function Settings() {
                 ))}
             </div>
 
-            {/* Botão Ver mais/Ver menos */}
             {CHANGELOG.length > 3 && (
-                <div className="mt-6 pt-6 border-t border-gray-200 flex justify-center">
-                    <button
-                        onClick={() => setShowAllVersions(!showAllVersions)}
-                        className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200 rounded-xl font-bold text-sm text-blue-700 transition-all hover:scale-105"
-                    >
-                        <History className="h-4 w-4" />
-                        <span>{showAllVersions ? `Mostrar Menos` : `Ver Todas as Versões (${CHANGELOG.length})`}</span>
-                        <div className={`h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center transition-transform ${showAllVersions ? 'rotate-180' : ''}`}>
-                            <span className="text-blue-600 text-xs font-black">↓</span>
-                        </div>
-                    </button>
-                </div>
+                <button
+                    onClick={() => setShowAllVersions(!showAllVersions)}
+                    className="w-full mt-4 py-2.5 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50"
+                >
+                    {showAllVersions ? 'Mostrar Menos' : `Ver Todas (${CHANGELOG.length})`}
+                </button>
             )}
-            </div>
-
-            {/* Legenda */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-                <p className="text-xs font-bold text-gray-600 mb-2">Legenda de Versionamento:</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 rounded border border-red-200">MAJOR</span>
-                        <span className="text-xs text-gray-600">Mudanças radicais</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded border border-blue-200">MINOR</span>
-                        <span className="text-xs text-gray-600">Novas funcionalidades</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-green-100 text-green-700 rounded border border-green-200">PATCH</span>
-                        <span className="text-xs text-gray-600">Correções de bugs</span>
-                    </div>
-                </div>
-            </div>
         </div>
-
       </div>
 
     </div>
