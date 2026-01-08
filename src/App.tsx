@@ -68,8 +68,20 @@ export default function App() {
     setLoggingOut(true)
     
     try {
+      // Preservar flags importantes antes de limpar
+      const hasSeenWelcome = localStorage.getItem('hasSeenWelcomeModal')
+      const clientsViewType = localStorage.getItem('clientsViewType')
+      
       // Limpar localStorage
       localStorage.clear()
+      
+      // Restaurar flags importantes
+      if (hasSeenWelcome) {
+        localStorage.setItem('hasSeenWelcomeModal', hasSeenWelcome)
+      }
+      if (clientsViewType) {
+        localStorage.setItem('clientsViewType', clientsViewType)
+      }
       
       // Fazer signOut (aguarda conclusão)
       await supabase.auth.signOut()
