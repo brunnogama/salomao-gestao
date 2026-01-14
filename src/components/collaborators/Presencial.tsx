@@ -27,14 +27,13 @@ export function Presencial() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Estados do Relatório
-  const [viewMode, setViewMode] = useState<'list' | 'report'>('report') // Padrão: Relatório
+  const [viewMode, setViewMode] = useState<'list' | 'report'>('report')
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
   // --- BUSCA DE DADOS ---
   const fetchRecords = async () => {
     setLoading(true)
-    // Aumentei o limit para garantir que pegue o mês todo na análise
     const { data, error } = await supabase
       .from('presenca_portaria')
       .select('*')
@@ -53,7 +52,7 @@ export function Presencial() {
     fetchRecords()
   }, [])
 
-  // --- LÓGICA DO RELATÓRIO (UseMemo para performance) ---
+  // --- LÓGICA DO RELATÓRIO ---
   const reportData = useMemo(() => {
     const grouped: { [key: string]: { uniqueDays: Set<string>, weekDays: { [key: number]: number } } } = {}
 
@@ -65,41 +64,38 @@ export function Presencial() {
         return
       }
 
-      const nome = record.nome_colaborador.toUpperCase() // Normalizar nomes
-      const dayKey = dateObj.toLocaleDateString('pt-BR') // Chave para dia único (DD/MM/AAAA)
-      const weekDay = dateObj.getDay() // 0 (Dom) a 6 (Sab)
+      const nome = record.nome_colaborador.toUpperCase()
+      const dayKey = dateObj.toLocaleDateString('pt-BR') // Chave única por dia
+      const weekDay = dateObj.getDay()
 
       if (!grouped[nome]) {
         grouped[nome] = { uniqueDays: new Set(), weekDays: {} }
       }
 
-      // Adiciona ao Set (Sets automaticamente ignoram duplicatas, resolvendo entradas repetidas no mesmo dia)
+      // Se é um dia novo para este colaborador neste mês
       if (!grouped[nome].uniqueDays.has(dayKey)) {
         grouped[nome].uniqueDays.add(dayKey)
-        
-        // Contabiliza o dia da semana apenas uma vez por dia
+        // Incrementa o dia da semana
         grouped[nome].weekDays[weekDay] = (grouped[nome].weekDays[weekDay] || 0) + 1
       }
     })
 
-    // Transforma o objeto agrupado em array para a tabela
     const result: ReportItem[] = Object.keys(grouped).map(nome => {
       const weekDaysMap: { [key: string]: number } = {}
       const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
       
-      // Mapeia números (0-6) para nomes (Dom-Sáb)
       Object.entries(grouped[nome].weekDays).forEach(([dayIndex, count]) => {
          weekDaysMap[days[Number(dayIndex)]] = count
       })
 
       return {
         nome: nome,
-        diasPresentes: grouped[nome].uniqueDays.size,
+        diasPresentes: grouped[nome].uniqueDays.size, // Total de dias únicos no mês
         diasSemana: weekDaysMap
       }
     })
 
-    // Ordena por quem veio mais vezes
+    // Ordena por maior frequência
     return result.sort((a, b) => b.diasPresentes - a.diasPresentes)
   }, [records, selectedMonth, selectedYear])
 
@@ -182,14 +178,13 @@ export function Presencial() {
       finally { setDeleting(false) }
   }
 
-  // --- RENDER ---
   const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-  const years = Array.from({length: 5}, (_, i) => new Date().getFullYear() - i) // [2026, 2025, ...]
+  const years = Array.from({length: 5}, (_, i) => new Date().getFullYear() - i)
 
   return (
     <div className="flex flex-col h-full bg-gray-100 space-y-6">
       
-      {/* Header e Controles */}
+      {/* Header */}
       <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
@@ -197,7 +192,6 @@ export function Presencial() {
             <p className="text-sm text-gray-500">Gestão de acessos físicos ao escritório.</p>
             </div>
             
-            {/* Botões de Ação */}
             <div className="flex items-center gap-2">
                 <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                 <button onClick={() => fetchRecords()} className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Atualizar"><RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} /></button>
@@ -262,19 +256,33 @@ export function Presencial() {
                         <thead className="bg-gray-50 sticky top-0 z-10 text-xs uppercase text-gray-500 font-semibold tracking-wider">
                             <tr>
                                 <th className="px-6 py-4 border-b">Colaborador</th>
-                                <th className="px-6 py-4 border-b text-center">Dias Presenciais</th>
-                                <th className="px-6 py-4 border-b">Frequência Semanal</th>
+                                {/* Coluna Atualizada */}
+                                <th className="px-6 py-4 border-b w-64">Frequência Mensal</th>
+                                <th className="px-6 py-4 border-b">Detalhamento Semanal</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {reportData.map((item, idx) => (
                                 <tr key={idx} className="hover:bg-blue-50/50">
                                     <td className="px-6 py-4 font-medium text-[#112240] text-sm">{item.nome}</td>
-                                    <td className="px-6 py-4 text-center">
-                                        <span className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">
-                                            {item.diasPresentes} dias
-                                        </span>
+                                    
+                                    {/* Célula de Frequência Mensal */}
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="text-lg font-bold text-[#112240]">{item.diasPresentes}</span>
+                                                <span className="text-xs text-gray-500">dias</span>
+                                            </div>
+                                            {/* Barra de Progresso (Base 22 dias úteis) */}
+                                            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                <div 
+                                                    className={`h-full rounded-full ${item.diasPresentes >= 20 ? 'bg-green-500' : item.diasPresentes >= 10 ? 'bg-blue-500' : 'bg-yellow-500'}`}
+                                                    style={{ width: `${Math.min((item.diasPresentes / 22) * 100, 100)}%` }}
+                                                />
+                                            </div>
+                                        </div>
                                     </td>
+
                                     <td className="px-6 py-4">
                                         <div className="flex gap-2">
                                             {['Seg', 'Ter', 'Qua', 'Qui', 'Sex'].map(day => (
@@ -293,7 +301,7 @@ export function Presencial() {
             </div>
         )}
 
-        {/* VIEW: LISTA BRUTA (ANTIGA) */}
+        {/* VIEW: LISTA BRUTA */}
         {viewMode === 'list' && (
              <div className="flex-1 overflow-auto">
                 <table className="w-full text-left border-collapse">
