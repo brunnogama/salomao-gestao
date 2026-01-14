@@ -11,10 +11,23 @@ import { Dashboard } from './components/Dashboard'
 import { History } from './components/History'
 import { Manual } from './components/Manual'
 import { WelcomeModal } from './components/WelcomeModal'
-import { Menu, LogOut, Grid, UserCircle } from 'lucide-react'
+import { 
+  Menu, 
+  LogOut, 
+  Grid, 
+  UserCircle,
+  // Novos ícones importados
+  LayoutDashboard,
+  Users,
+  Gavel,
+  FileWarning,
+  KanbanSquare,
+  BookOpen,
+  History as HistoryIcon, // Renomeado para não conflitar com o componente History
+  Settings as SettingsIcon 
+} from 'lucide-react'
 import { ModuleSelector } from './components/ModuleSelector'
 import { UnderConstruction } from './components/UnderConstruction'
-
 
 export default function App() {
   const [session, setSession] = useState<any>(null)
@@ -25,6 +38,18 @@ export default function App() {
   const [activePage, setActivePage] = useState('dashboard')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [clientFilters, setClientFilters] = useState<{ socio?: string; brinde?: string }>({})
+
+  // Mapeamento de Ícones
+  const pageIcons: Record<string, any> = {
+    dashboard: LayoutDashboard,
+    clientes: Users,
+    magistrados: Gavel,
+    incompletos: FileWarning,
+    kanban: KanbanSquare,
+    configuracoes: SettingsIcon,
+    historico: HistoryIcon,
+    manual: BookOpen
+  }
 
   const moduleDescriptions: Record<string, string> = {
     dashboard: 'Visão geral de performance e indicadores chave.',
@@ -101,6 +126,9 @@ export default function App() {
     setActivePage(page)
   }
 
+  // Define o ícone atual
+  const CurrentIcon = pageIcons[activePage]
+
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-[#112240]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>
   if (loggingOut) return <div className="h-screen w-full flex items-center justify-center bg-[#112240]"><div className="text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div><p className="text-white text-sm">Saindo...</p></div></div>
   if (!session) return <Login />
@@ -121,6 +149,14 @@ export default function App() {
           <header className="bg-white border-b border-gray-200 h-20 flex items-center px-4 md:px-8 justify-between flex-shrink-0 z-10 gap-3">
               <div className="flex items-center gap-3 overflow-hidden">
                   <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg shrink-0"><Menu className="h-6 w-6" /></button>
+                  
+                  {/* Ícone do Módulo ao lado esquerdo do título */}
+                  {CurrentIcon && (
+                    <div className="hidden md:flex items-center justify-center h-10 w-10 rounded-lg bg-[#112240]/5 text-[#112240]">
+                      <CurrentIcon className="h-6 w-6" strokeWidth={1.5} />
+                    </div>
+                  )}
+
                   <div className="flex flex-col justify-center min-w-0">
                       <h1 className="text-xl md:text-2xl font-bold text-[#112240] capitalize leading-tight truncate">{pageTitles[activePage] || activePage}</h1>
                       <span className="text-xs md:text-sm text-gray-500 font-normal truncate hidden sm:block">{moduleDescriptions[activePage]}</span>
