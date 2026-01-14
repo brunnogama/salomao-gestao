@@ -22,6 +22,7 @@ interface SocioRule {
 
 interface ReportItem {
   nome: string;
+  socio: string; // Nova propriedade
   diasPresentes: number;
   diasSemana: { [key: string]: number };
 }
@@ -29,35 +30,41 @@ interface ReportItem {
 export function Presencial() {
   // --- ESTADOS GERAIS ---
   const [records, setRecords] = useState<PresenceRecord[]>([])
-  const [socioRules, setSocioRules] = useState<SocioRule[]>([]) // Estado para regras
+  const [socioRules, setSocioRules] = useState<SocioRule[]>([]) 
   
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [deleting, setDeleting] = useState(false)
   
-  // Refs para inputs de arquivo diferentes
+  // Refs
   const presenceInputRef = useRef<HTMLInputElement>(null)
   const socioInputRef = useRef<HTMLInputElement>(null)
 
   // --- ESTADOS DE NAVEGAÇÃO ---
-  // Adicionei 'socios' como opção de visualização
   const [viewMode, setViewMode] = useState<'list' | 'report' | 'socios'>('report')
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
-  // --- 1. BUSCAR DADOS (PRESENÇA E SÓCIOS) ---
+  // --- HELPER NORMALIZAÇÃO ---
+  const normalizeText = (text: string) => {
+      return text
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") 
+  }
+
+  // --- 1. BUSCAR DADOS ---
   const fetchRecords = async () => {
     setLoading(true)
     
-    // Busca Presença
     const { data: presenceData } = await supabase
       .from('presenca_portaria')
       .select('*')
       .order('data_hora', { ascending: false })
       .limit(5000)
 
-    // Busca Regras de Sócios
     const { data: rulesData } = await supabase
       .from('socios_regras')
       .select('*')
@@ -73,8 +80,15 @@ export function Presencial() {
     fetchRecords()
   }, [])
 
-  // --- 2. LÓGICA DO RELATÓRIO (EXISTENTE) ---
+  // --- 2. LÓGICA DO RELATÓRIO (CRUZAMENTO DE DADOS) ---
   const reportData = useMemo(() => {
+    // 1. Criar mapa de Colaborador -> Sócio para busca rápida
+    const socioMap = new Map<string, string>()
+    socioRules.forEach(rule => {
+        socioMap.set(normalizeText(rule.nome_colaborador), rule.socio_responsavel)
+    })
+
+    // 2. Agrupar dados de presença
     const grouped: { [key: string]: { uniqueDays: Set<string>, weekDays: { [key: number]: number } } } = {}
 
     records.forEach(record => {
@@ -92,27 +106,44 @@ export function Presencial() {
       }
     })
 
+    // 3. Montar resultado final cruzando com o mapa de sócios
     const result: ReportItem[] = Object.keys(grouped).map(nome => {
       const weekDaysMap: { [key: string]: number } = {}
       const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
       Object.entries(grouped[nome].weekDays).forEach(([i, count]) => weekDaysMap[days[Number(i)]] = count)
-      return { nome, diasPresentes: grouped[nome].uniqueDays.size, diasSemana: weekDaysMap }
-    })
-    return result.sort((a, b) => b.diasPresentes - a.diasPresentes)
-  }, [records, selectedMonth, selectedYear])
+      
+      // Busca o sócio usando o nome normalizado
+      const socioResponsavel = socioMap.get(normalizeText(nome)) || '-'
 
-  // --- UTILS ---
+      return { 
+          nome, 
+          socio: socioResponsavel, // Define o sócio
+          diasPresentes: grouped[nome].uniqueDays.size, 
+          diasSemana: weekDaysMap 
+      }
+    })
+    
+    // Ordena por Sócio (A-Z) e depois por Presença
+    return result.sort((a, b) => {
+        if (a.socio === '-' && b.socio !== '-') return 1;
+        if (a.socio !== '-' && b.socio === '-') return -1;
+        if (a.socio !== b.socio) return a.socio.localeCompare(b.socio);
+        return b.diasPresentes - a.diasPresentes;
+    })
+
+  }, [records, socioRules, selectedMonth, selectedYear])
+
+  // --- UTILS EXCEL ---
   const findValue = (row: any, keys: string[]) => {
-    const rowKeys = Object.keys(row).map(k => k.trim().toLowerCase())
-    const targetKey = keys.find(k => rowKeys.includes(k.toLowerCase()))
-    if (targetKey) {
-        const originalKey = Object.keys(row).find(k => k.trim().toLowerCase() === targetKey.toLowerCase())
-        return originalKey ? row[originalKey] : null
+    const rowKeys = Object.keys(row)
+    for (const searchKey of keys) {
+        const foundKey = rowKeys.find(k => normalizeText(k) === normalizeText(searchKey))
+        if (foundKey) return row[foundKey]
     }
     return null
   }
 
-  // --- 3. UPLOAD DE PRESENÇA (EXISTENTE) ---
+  // --- 3. UPLOAD PRESENÇA ---
   const handlePresenceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true); setProgress(0);
@@ -123,8 +154,8 @@ export function Presencial() {
         const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
         
         const recordsToInsert = data.map((row: any) => {
-          const nome = findValue(row, ['nome', 'colaborador']) || 'Desconhecido'
-          const tempoRaw = findValue(row, ['tempo', 'data'])
+          const nome = findValue(row, ['nome', 'colaborador', 'funcionario']) || 'Desconhecido'
+          const tempoRaw = findValue(row, ['tempo', 'data', 'horario'])
           let dataFinal = new Date()
           if (typeof tempoRaw === 'string') dataFinal = new Date(tempoRaw)
           else if (typeof tempoRaw === 'number') dataFinal = new Date((tempoRaw - 25569) * 86400 * 1000)
@@ -141,14 +172,14 @@ export function Presencial() {
             await supabase.from('presenca_portaria').insert(recordsToInsert.slice(i, i + BATCH_SIZE))
             setProgress(Math.round(((i / BATCH_SIZE) + 1) / total * 100))
         }
-        alert(`${recordsToInsert.length} registros de presença importados!`); fetchRecords()
-      } catch (err) { alert("Erro ao importar presença.") } 
+        alert(`${recordsToInsert.length} registros importados!`); fetchRecords()
+      } catch (err) { alert("Erro ao importar.") } 
       finally { setUploading(false); if (presenceInputRef.current) presenceInputRef.current.value = '' }
     }
     reader.readAsBinaryString(file)
   }
 
-  // --- 4. NOVO: UPLOAD DE SÓCIOS ---
+  // --- 4. UPLOAD SÓCIOS ---
   const handleSocioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true); setProgress(0);
@@ -158,30 +189,19 @@ export function Presencial() {
         const wb = XLSX.read(evt.target?.result, { type: 'binary' });
         const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
         
-        // Mapear colunas: Socio, Colaborador, Meta
         const rulesToInsert = data.map((row: any) => {
-          const socio = findValue(row, ['socio', 'responsavel', 'partner']) || 'Não Definido'
+          const socio = findValue(row, ['socio', 'sócio', 'responsavel', 'gestor', 'partner']) || 'Não Definido'
           const colab = findValue(row, ['nome', 'colaborador', 'funcionario']) || 'Desconhecido'
-          const meta = findValue(row, ['meta', 'dias', 'regra']) || 3 // Padrão 3 dias
-          
-          return {
-            socio_responsavel: socio,
-            nome_colaborador: colab,
-            meta_semanal: Number(meta) || 3
-          }
+          const meta = findValue(row, ['meta', 'dias', 'regra']) || 3 
+          return { socio_responsavel: socio, nome_colaborador: colab, meta_semanal: Number(meta) || 3 }
         }).filter((r:any) => r.nome_colaborador !== 'Desconhecido')
 
-        // Limpar tabela antiga antes de inserir nova (opção de design: substituir tudo)
-        if(confirm(`Deseja substituir a base de sócios atual por estes ${rulesToInsert.length} registros?`)) {
+        if(confirm(`Substituir base de sócios por ${rulesToInsert.length} registros?`)) {
             await supabase.from('socios_regras').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-            
-            const { error } = await supabase.from('socios_regras').insert(rulesToInsert)
-            if (error) throw error;
-            
-            alert("Base de Sócios e Regras atualizada com sucesso!"); 
-            fetchRecords()
+            await supabase.from('socios_regras').insert(rulesToInsert)
+            alert("Atualizado!"); fetchRecords()
         }
-      } catch (err) { alert("Erro ao importar sócios.") } 
+      } catch (err) { alert("Erro ao importar.") } 
       finally { setUploading(false); if (socioInputRef.current) socioInputRef.current.value = '' }
     }
     reader.readAsBinaryString(file)
@@ -189,23 +209,21 @@ export function Presencial() {
 
   const handleClearData = async () => {
       if (viewMode === 'socios') {
-          if (!confirm("Apagar TODAS as regras de sócios?")) return;
+          if (!confirm("Apagar regras de sócios?")) return;
           await supabase.from('socios_regras').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       } else {
-          if (!confirm("Apagar TODO o histórico de presença?")) return;
+          if (!confirm("Apagar histórico de presença?")) return;
           await supabase.from('presenca_portaria').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       }
       fetchRecords()
   }
 
-  // Constants
   const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
   const years = Array.from({length: 5}, (_, i) => new Date().getFullYear() - i)
 
   return (
     <div className="flex flex-col h-full bg-gray-100 space-y-6">
       
-      {/* Header e Controles */}
       <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
@@ -222,7 +240,6 @@ export function Presencial() {
                 <button onClick={() => fetchRecords()} className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Atualizar"><RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} /></button>
                 <button onClick={handleClearData} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Limpar Base Atual"><Trash2 className="h-5 w-5" /></button>
                 
-                {/* Botão de Importação Dinâmico */}
                 {viewMode === 'socios' ? (
                     <button onClick={() => socioInputRef.current?.click()} disabled={uploading} className="bg-[#112240] hover:bg-[#1e3a8a] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                         {uploading ? 'Carregando...' : <><Users className="h-4 w-4" /> Importar Sócios</>}
@@ -235,7 +252,6 @@ export function Presencial() {
             </div>
         </div>
 
-        {/* Abas e Filtros */}
         <div className="flex flex-col md:flex-row items-center justify-between border-t border-gray-100 pt-4 gap-4">
             <div className="flex bg-gray-100 p-1 rounded-lg">
                 <button onClick={() => setViewMode('report')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'report' ? 'bg-white text-[#112240] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -263,10 +279,8 @@ export function Presencial() {
         </div>
       </div>
 
-      {/* Conteúdo Principal */}
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
         
-        {/* VIEW: RELATÓRIO DE PRESENÇA */}
         {viewMode === 'report' && (
             <div className="flex-1 overflow-auto">
                 {reportData.length === 0 ? (
@@ -276,6 +290,7 @@ export function Presencial() {
                         <thead className="bg-gray-50 sticky top-0 z-10 text-xs uppercase text-gray-500 font-semibold tracking-wider">
                             <tr>
                                 <th className="px-6 py-4 border-b">Colaborador</th>
+                                <th className="px-6 py-4 border-b">Sócio Responsável</th> {/* NOVA COLUNA */}
                                 <th className="px-6 py-4 border-b w-64">Frequência Mensal</th>
                                 <th className="px-6 py-4 border-b">Semana</th>
                             </tr>
@@ -284,6 +299,18 @@ export function Presencial() {
                             {reportData.map((item, idx) => (
                                 <tr key={idx} className="hover:bg-blue-50/50">
                                     <td className="px-6 py-4 font-medium text-[#112240] text-sm">{item.nome}</td>
+                                    
+                                    {/* Célula do Sócio */}
+                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                        {item.socio !== '-' ? (
+                                            <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded border border-gray-200 text-xs font-semibold">
+                                                {item.socio}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-300">-</span>
+                                        )}
+                                    </td>
+
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-baseline gap-1">
@@ -312,14 +339,13 @@ export function Presencial() {
             </div>
         )}
 
-        {/* VIEW: SÓCIOS E REGRAS */}
         {viewMode === 'socios' && (
              <div className="flex-1 overflow-auto">
                  {socioRules.length === 0 ? (
                      <div className="h-64 flex flex-col items-center justify-center text-gray-400">
                          <Users className="h-12 w-12 mb-3 opacity-20" />
                          <p>Nenhuma regra cadastrada.</p>
-                         <p className="text-sm">Importe uma planilha com as colunas: "Sócio", "Colaborador", "Meta"</p>
+                         <p className="text-sm">Importe planilha com: "Sócio", "Colaborador", "Meta"</p>
                      </div>
                  ) : (
                     <table className="w-full text-left border-collapse">
@@ -327,7 +353,7 @@ export function Presencial() {
                         <tr>
                             <th className="px-6 py-4 border-b">Sócio Responsável</th>
                             <th className="px-6 py-4 border-b">Colaborador</th>
-                            <th className="px-6 py-4 border-b">Meta Presencial (Dias/Semana)</th>
+                            <th className="px-6 py-4 border-b">Meta Presencial</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -335,11 +361,7 @@ export function Presencial() {
                             <tr key={rule.id} className="hover:bg-gray-50 text-sm text-gray-700">
                                 <td className="px-6 py-3 font-bold text-[#112240]">{rule.socio_responsavel}</td>
                                 <td className="px-6 py-3 capitalize">{rule.nome_colaborador.toLowerCase()}</td>
-                                <td className="px-6 py-3">
-                                    <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200 font-medium">
-                                        {rule.meta_semanal}x por semana
-                                    </span>
-                                </td>
+                                <td className="px-6 py-3"><span className="bg-gray-100 px-2 py-1 rounded border border-gray-200 font-medium">{rule.meta_semanal}x</span></td>
                             </tr>
                         ))}
                     </tbody>
@@ -348,7 +370,6 @@ export function Presencial() {
              </div>
         )}
 
-        {/* VIEW: LISTA BRUTA */}
         {viewMode === 'list' && (
              <div className="flex-1 overflow-auto">
                 <table className="w-full text-left border-collapse">
