@@ -52,7 +52,6 @@ export default function Login() {
                  }
                }}
              />
-             <span className="text-xs font-bold tracking-[0.3em] text-gray-400 uppercase mt-2">Administrative System</span>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
