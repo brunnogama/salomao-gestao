@@ -8,7 +8,8 @@ import {
   Settings, 
   FileWarning,
   X,
-  Gavel // Ícone para Autoridades (antigo Magistrados)
+  Gavel,
+  Truck // Ícone para Logística
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -62,9 +63,9 @@ export function Sidebar({ activePage, onNavigate, isOpen, onClose }: SidebarProp
   const mainItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clientes', label: 'Clientes', icon: Users },
-    // Mantive o ID 'magistrados' para não quebrar a rota, mas mudei o Label
     { id: 'magistrados', label: 'Autoridades', icon: Gavel }, 
     { id: 'incompletos', label: 'Incompletos', icon: FileWarning, badge: incompleteCount },
+    { id: 'logistica', label: 'Logística', icon: Truck }, // Novo Módulo
     { id: 'kanban', label: 'Kanban', icon: KanbanSquare },
   ]
 
