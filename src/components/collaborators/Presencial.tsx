@@ -92,12 +92,10 @@ export function Presencial() {
         setRecords(presenceData)
         
         // --- RESTAURADO: AUTO-SELEÇÃO DE DATA ---
-        // Se for a primeira carga (loading true), ajusta a data para o último registro encontrado
-        if (loading) {
-            const lastDate = new Date(presenceData[0].data_hora)
-            setSelectedMonth(lastDate.getMonth())
-            setSelectedYear(lastDate.getFullYear())
-        }
+        // Ajusta o filtro para o mês/ano do registro mais recente
+        const lastDate = new Date(presenceData[0].data_hora)
+        setSelectedMonth(lastDate.getMonth())
+        setSelectedYear(lastDate.getFullYear())
     } else {
         setRecords([])
     }
