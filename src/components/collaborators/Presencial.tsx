@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { 
   Upload, FileSpreadsheet, RefreshCw, Trash2, 
-  LayoutList, BarChart3, Calendar, Users, Briefcase 
+  LayoutList, BarChart3, Calendar, Users, Briefcase,
+  Pencil, Plus, X, Save
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../../lib/supabase'
 
-// Tipos
+// --- TIPOS ---
 interface PresenceRecord {
   id: string;
   nome_colaborador: string;
@@ -35,13 +36,16 @@ export function Presencial() {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [deleting, setDeleting] = useState(false)
   
+  // Estado para Edição/Criação de Regra
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingRule, setEditingRule] = useState<Partial<SocioRule> | null>(null)
+
   // Refs
   const presenceInputRef = useRef<HTMLInputElement>(null)
   const socioInputRef = useRef<HTMLInputElement>(null)
 
-  // --- ESTADOS DE NAVEGAÇÃO ---
+  // --- NAVEGAÇÃO ---
   const [viewMode, setViewMode] = useState<'list' | 'report' | 'socios'>('report')
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
@@ -49,42 +53,37 @@ export function Presencial() {
   // --- HELPER NORMALIZAÇÃO ---
   const normalizeText = (text: string) => {
       if (!text) return ""
-      return text
-        .trim() // Garante remoção de espaços aqui também
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") 
+      return text.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
   }
 
   // --- 1. BUSCAR DADOS ---
   const fetchRecords = async () => {
     setLoading(true)
     
-    // Busca Presença (Aumentei o limite para garantir histórico)
+    // Busca Presença
     const { data: presenceData } = await supabase
       .from('presenca_portaria')
       .select('*')
       .order('data_hora', { ascending: false })
       .limit(10000)
 
-    // Busca Regras de Sócios
+    // Busca Regras de Sócios (Aumentei o limite para garantir que traga todos)
     const { data: rulesData } = await supabase
       .from('socios_regras')
       .select('*')
-      .order('socio_responsavel', { ascending: true })
+      .order('nome_colaborador', { ascending: true }) // Ordenar por colaborador facilita achar erros
+      .limit(2000)
 
     if (rulesData) setSocioRules(rulesData)
 
     if (presenceData && presenceData.length > 0) {
         setRecords(presenceData)
-        
-        // --- AUTO-AJUSTE DE DATA ---
-        // Se houver dados, ajusta o filtro para o mês/ano do registro mais recente
-        // para evitar que a tela pareça vazia ao entrar.
-        const lastDate = new Date(presenceData[0].data_hora)
-        // Só atualiza se for a primeira carga (loading true) ou se o mês atual estiver vazio
-        setSelectedMonth(lastDate.getMonth())
-        setSelectedYear(lastDate.getFullYear())
+        // Auto-seleção de data apenas na primeira carga se não houver seleção
+        if (loading) {
+            const lastDate = new Date(presenceData[0].data_hora)
+            setSelectedMonth(lastDate.getMonth())
+            setSelectedYear(lastDate.getFullYear())
+        }
     } else {
         setRecords([])
     }
@@ -109,7 +108,6 @@ export function Presencial() {
       const dateObj = new Date(record.data_hora)
       if (dateObj.getMonth() !== selectedMonth || dateObj.getFullYear() !== selectedYear) return
 
-      // Normaliza e Trim no nome para agrupamento
       const nome = record.nome_colaborador.trim().toUpperCase()
       const dayKey = dateObj.toLocaleDateString('pt-BR')
       const weekDay = dateObj.getDay()
@@ -155,7 +153,7 @@ export function Presencial() {
     return null
   }
 
-  // --- 3. UPLOAD PRESENÇA (COM TRIM) ---
+  // --- 3. UPLOADS (COM TRIM) ---
   const handlePresenceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true); setProgress(0);
@@ -167,8 +165,6 @@ export function Presencial() {
         
         const recordsToInsert = data.map((row: any) => {
           let nome = findValue(row, ['nome', 'colaborador', 'funcionario']) || 'Desconhecido'
-          
-          // --- CORREÇÃO: TRIM ---
           if (typeof nome === 'string') nome = nome.trim()
             
           const tempoRaw = findValue(row, ['tempo', 'data', 'horario'])
@@ -188,14 +184,13 @@ export function Presencial() {
             await supabase.from('presenca_portaria').insert(recordsToInsert.slice(i, i + BATCH_SIZE))
             setProgress(Math.round(((i / BATCH_SIZE) + 1) / total * 100))
         }
-        alert(`${recordsToInsert.length} registros de presença importados!`); fetchRecords()
+        alert(`${recordsToInsert.length} registros importados!`); fetchRecords()
       } catch (err) { alert("Erro ao importar.") } 
       finally { setUploading(false); if (presenceInputRef.current) presenceInputRef.current.value = '' }
     }
     reader.readAsBinaryString(file)
   }
 
-  // --- 4. UPLOAD SÓCIOS (COM TRIM) ---
   const handleSocioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true); setProgress(0);
@@ -209,7 +204,6 @@ export function Presencial() {
           let socio = findValue(row, ['socio', 'sócio', 'responsavel', 'gestor', 'partner']) || 'Não Definido'
           let colab = findValue(row, ['nome', 'colaborador', 'funcionario']) || 'Desconhecido'
           
-          // --- CORREÇÃO: TRIM ---
           if (typeof socio === 'string') socio = socio.trim()
           if (typeof colab === 'string') colab = colab.trim()
 
@@ -228,12 +222,64 @@ export function Presencial() {
     reader.readAsBinaryString(file)
   }
 
+  // --- 4. EDIÇÃO MANUAL (CRUD) ---
+  const handleOpenModal = (rule?: SocioRule) => {
+      setEditingRule(rule || { socio_responsavel: '', nome_colaborador: '', meta_semanal: 3 })
+      setIsModalOpen(true)
+  }
+
+  const handleSaveRule = async () => {
+      if (!editingRule?.socio_responsavel || !editingRule?.nome_colaborador) {
+          alert("Preencha o sócio e o colaborador.")
+          return
+      }
+
+      setLoading(true)
+      try {
+          if (editingRule.id) {
+              // Atualizar existente
+              const { error } = await supabase
+                .from('socios_regras')
+                .update({ 
+                    socio_responsavel: editingRule.socio_responsavel.trim(),
+                    nome_colaborador: editingRule.nome_colaborador.trim(),
+                    meta_semanal: editingRule.meta_semanal
+                })
+                .eq('id', editingRule.id)
+              if (error) throw error
+          } else {
+              // Criar novo
+              const { error } = await supabase
+                .from('socios_regras')
+                .insert({ 
+                    socio_responsavel: editingRule.socio_responsavel.trim(),
+                    nome_colaborador: editingRule.nome_colaborador.trim(),
+                    meta_semanal: editingRule.meta_semanal || 3
+                })
+              if (error) throw error
+          }
+          setIsModalOpen(false)
+          fetchRecords()
+      } catch (error: any) {
+          alert("Erro ao salvar: " + error.message)
+      } finally {
+          setLoading(false)
+      }
+  }
+
+  const handleDeleteRule = async (id: string) => {
+      if (!confirm("Tem certeza que deseja excluir esta regra?")) return
+      setLoading(true)
+      await supabase.from('socios_regras').delete().eq('id', id)
+      fetchRecords()
+  }
+
   const handleClearData = async () => {
       if (viewMode === 'socios') {
-          if (!confirm("Apagar regras de sócios?")) return;
+          if (!confirm("Apagar TODAS as regras de sócios?")) return;
           await supabase.from('socios_regras').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       } else {
-          if (!confirm("Apagar histórico de presença?")) return;
+          if (!confirm("Apagar TODO o histórico de presença?")) return;
           await supabase.from('presenca_portaria').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       }
       fetchRecords()
@@ -243,14 +289,66 @@ export function Presencial() {
   const years = Array.from({length: 5}, (_, i) => new Date().getFullYear() - i)
 
   return (
-    <div className="flex flex-col h-full bg-gray-100 space-y-6">
+    <div className="flex flex-col h-full bg-gray-100 space-y-6 relative">
       
+      {/* MODAL DE EDIÇÃO */}
+      {isModalOpen && editingRule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fadeIn">
+                <div className="bg-[#112240] px-6 py-4 flex justify-between items-center">
+                    <h3 className="text-white font-bold">{editingRule.id ? 'Editar Regra' : 'Nova Regra'}</h3>
+                    <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white"><X className="h-5 w-5"/></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Colaborador</label>
+                        <input 
+                            type="text" 
+                            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="Ex: João Silva"
+                            value={editingRule.nome_colaborador}
+                            onChange={e => setEditingRule({...editingRule, nome_colaborador: e.target.value})}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Deve ser idêntico ao nome no relatório de presença.</p>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Sócio Responsável</label>
+                        <input 
+                            type="text" 
+                            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="Ex: Dr. Salomão"
+                            value={editingRule.socio_responsavel}
+                            onChange={e => setEditingRule({...editingRule, socio_responsavel: e.target.value})}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Meta Semanal (Dias)</label>
+                        <input 
+                            type="number" 
+                            min="1" max="7"
+                            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={editingRule.meta_semanal}
+                            onChange={e => setEditingRule({...editingRule, meta_semanal: Number(e.target.value)})}
+                        />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <button onClick={() => setIsModalOpen(false)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>
+                        <button onClick={handleSaveRule} className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2">
+                            <Save className="h-4 w-4" /> Salvar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* HEADER */}
       <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <h2 className="text-xl font-bold text-[#112240]">Controle de Presença</h2>
                 <p className="text-sm text-gray-500">
-                    {viewMode === 'socios' ? 'Gestão de vínculos entre Sócios e Colaboradores.' : 'Monitoramento de acessos ao escritório.'}
+                    {viewMode === 'socios' ? 'Vínculos: Se o nome estiver diferente do relatório, edite aqui.' : 'Monitoramento de acessos.'}
                 </p>
             </div>
             
@@ -262,9 +360,14 @@ export function Presencial() {
                 <button onClick={handleClearData} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Limpar Base Atual"><Trash2 className="h-5 w-5" /></button>
                 
                 {viewMode === 'socios' ? (
-                    <button onClick={() => socioInputRef.current?.click()} disabled={uploading} className="bg-[#112240] hover:bg-[#1e3a8a] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-                        {uploading ? 'Carregando...' : <><Users className="h-4 w-4" /> Importar Sócios</>}
-                    </button>
+                    <div className="flex gap-2">
+                         <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                            <Plus className="h-4 w-4" /> Novo
+                        </button>
+                        <button onClick={() => socioInputRef.current?.click()} disabled={uploading} className="bg-[#112240] hover:bg-[#1e3a8a] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                            {uploading ? 'Carregando...' : <><Users className="h-4 w-4" /> Importar</>}
+                        </button>
+                    </div>
                 ) : (
                     <button onClick={() => presenceInputRef.current?.click()} disabled={uploading} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                          {uploading ? `Importando ${progress}%` : <><FileSpreadsheet className="h-4 w-4" /> Importar Presença</>}
@@ -327,7 +430,7 @@ export function Presencial() {
                                                 {item.socio}
                                             </span>
                                         ) : (
-                                            <span className="text-gray-300">-</span>
+                                            <span className="text-red-400 text-xs italic bg-red-50 px-2 py-1 rounded">Sem Sócio</span>
                                         )}
                                     </td>
 
@@ -365,23 +468,30 @@ export function Presencial() {
                      <div className="h-64 flex flex-col items-center justify-center text-gray-400">
                          <Users className="h-12 w-12 mb-3 opacity-20" />
                          <p>Nenhuma regra cadastrada.</p>
-                         <p className="text-sm">Importe planilha com: "Sócio", "Colaborador", "Meta"</p>
+                         <p className="text-sm">Clique em "Novo" ou Importe uma planilha.</p>
                      </div>
                  ) : (
                     <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-50 sticky top-0 z-10 text-xs uppercase text-gray-500 font-semibold tracking-wider">
                         <tr>
-                            <th className="px-6 py-4 border-b">Sócio Responsável</th>
                             <th className="px-6 py-4 border-b">Colaborador</th>
-                            <th className="px-6 py-4 border-b">Meta Presencial</th>
+                            <th className="px-6 py-4 border-b">Sócio Responsável</th>
+                            <th className="px-6 py-4 border-b">Meta</th>
+                            <th className="px-6 py-4 border-b text-right">Ações</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {socioRules.map((rule) => (
-                            <tr key={rule.id} className="hover:bg-gray-50 text-sm text-gray-700">
-                                <td className="px-6 py-3 font-bold text-[#112240]">{rule.socio_responsavel}</td>
-                                <td className="px-6 py-3 capitalize">{rule.nome_colaborador.toLowerCase()}</td>
+                            <tr key={rule.id} className="hover:bg-gray-50 text-sm text-gray-700 group">
+                                <td className="px-6 py-3 font-medium capitalize text-[#112240]">{rule.nome_colaborador.toLowerCase()}</td>
+                                <td className="px-6 py-3">{rule.socio_responsavel}</td>
                                 <td className="px-6 py-3"><span className="bg-gray-100 px-2 py-1 rounded border border-gray-200 font-medium">{rule.meta_semanal}x</span></td>
+                                <td className="px-6 py-3 text-right">
+                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleOpenModal(rule)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Pencil className="h-4 w-4" /></button>
+                                        <button onClick={() => handleDeleteRule(rule.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="h-4 w-4" /></button>
+                                    </div>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
