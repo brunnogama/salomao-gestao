@@ -13,15 +13,19 @@ export function Presencial() {
   const [records, setRecords] = useState<PresenceRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState(0) // Estado para mostrar progresso
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Função para buscar dados do Supabase
+  // Função para buscar dados do Supabase (com paginação para não pesar)
   const fetchRecords = async () => {
     setLoading(true)
+    // Limitando a busca visual para os últimos 2000 registros para não travar a tela
+    // O banco terá todos, mas mostramos os mais recentes
     const { data, error } = await supabase
       .from('presenca_portaria')
       .select('*')
       .order('data_hora', { ascending: false })
+      .limit(2000)
 
     if (error) {
       console.error('Erro ao buscar registros:', error)
@@ -31,18 +35,15 @@ export function Presencial() {
     setLoading(false)
   }
 
-  // Carrega os dados ao abrir a tela
   useEffect(() => {
     fetchRecords()
   }, [])
 
-  // Função auxiliar para achar a chave correta no objeto do Excel (case insensitive)
   const findValue = (row: any, keys: string[]) => {
     const rowKeys = Object.keys(row).map(k => k.trim().toLowerCase())
     const targetKey = keys.find(k => rowKeys.includes(k.toLowerCase()))
     
     if (targetKey) {
-        // Encontra a chave original correspondente
         const originalKey = Object.keys(row).find(k => k.trim().toLowerCase() === targetKey.toLowerCase())
         return originalKey ? row[originalKey] : null
     }
@@ -54,6 +55,7 @@ export function Presencial() {
     if (!file) return
 
     setUploading(true)
+    setProgress(0)
     const reader = new FileReader()
     
     reader.onload = async (evt) => {
@@ -64,70 +66,79 @@ export function Presencial() {
         const ws = wb.Sheets[wsname]
         const data = XLSX.utils.sheet_to_json(ws)
 
-        console.log("Linha crua do Excel (debug):", data[0]) // Para ver no console o que está vindo
+        console.log(`Lendo arquivo: ${data.length} linhas encontradas.`)
 
         const recordsToInsert = data.map((row: any) => {
-          // Tenta encontrar o nome (aceita: 'Nome', 'NOME', 'Colaborador', etc)
           const nome = findValue(row, ['nome', 'colaborador', 'funcionario']) || 'Desconhecido'
-          
-          // Tenta encontrar o tempo (aceita: 'Tempo', 'Data', 'Hora')
           const tempoRaw = findValue(row, ['tempo', 'data', 'horario'])
           
           let dataFinal = new Date()
 
-          // Tratamento da Data "2025-11-19 16:54:41"
           if (tempoRaw && typeof tempoRaw === 'string') {
-             // Se for string no formato ISO ou parecido
              dataFinal = new Date(tempoRaw)
           } else if (typeof tempoRaw === 'number') {
-             // Se o Excel importou como número serial
-             // (XLSX converte data serial do Excel para JS Date se necessário, mas aqui assumimos string)
              dataFinal = new Date((tempoRaw - (25567 + 2)) * 86400 * 1000)
           }
 
           return {
             nome_colaborador: nome,
-            data_hora: isNaN(dataFinal.getTime()) ? new Date() : dataFinal, // Fallback para agora se der erro
+            data_hora: isNaN(dataFinal.getTime()) ? new Date() : dataFinal,
             arquivo_origem: file.name
           }
         })
 
-        // Filtrar apenas linhas que tenham nome válido (opcional)
         const validRecords = recordsToInsert.filter((r:any) => r.nome_colaborador !== 'Desconhecido')
 
         if (validRecords.length === 0) {
-            alert('Não foi possível identificar as colunas "Nome" ou "Tempo" no arquivo. Verifique o console (F12) para detalhes.')
+            alert('Não foi possível identificar as colunas "Nome" ou "Tempo" no arquivo.')
             setUploading(false)
             return
         }
 
-        // Inserir no Supabase
-        const { error } = await supabase.from('presenca_portaria').insert(validRecords)
+        // --- LÓGICA DE INSERÇÃO EM LOTES (BATCH INSERT) ---
+        const BATCH_SIZE = 100 // Envia de 100 em 100
+        const totalBatches = Math.ceil(validRecords.length / BATCH_SIZE)
 
-        if (error) throw error
+        for (let i = 0; i < validRecords.length; i += BATCH_SIZE) {
+            const batch = validRecords.slice(i, i + BATCH_SIZE)
+            
+            const { error } = await supabase.from('presenca_portaria').insert(batch)
+            
+            if (error) {
+                console.error("Erro no lote:", error)
+                throw error
+            }
+
+            // Atualiza progresso
+            const currentBatch = Math.floor(i / BATCH_SIZE) + 1
+            const percent = Math.round((currentBatch / totalBatches) * 100)
+            setProgress(percent)
+        }
 
         alert(`${validRecords.length} registros importados com sucesso!`)
-        fetchRecords() // Atualiza a lista
+        fetchRecords()
 
       } catch (error) {
         console.error("Erro na importação:", error)
-        alert("Erro ao processar arquivo. Verifique o formato.")
+        alert("Erro ao processar arquivo. Verifique o console.")
       } finally {
         setUploading(false)
-        if (fileInputRef.current) fileInputRef.current.value = '' // Limpa o input
+        setProgress(0)
+        if (fileInputRef.current) fileInputRef.current.value = ''
       }
     }
     reader.readAsBinaryString(file)
   }
 
   const handleClearHistory = async () => {
-      if(confirm("Tem certeza que deseja apagar TODO o histórico?")){
-          await supabase.from('presenca_portaria').delete().neq('id', '00000000-0000-0000-0000-000000000000') // Deleta tudo
-          fetchRecords()
+      if(confirm("Tem certeza que deseja apagar TODO o histórico? Isso não pode ser desfeito.")){
+          // Deletar sem where pode ser bloqueado pelo Supabase, então usamos um filtro genérico
+          const { error } = await supabase.from('presenca_portaria').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+          if (error) alert("Erro ao limpar: " + error.message)
+          else fetchRecords()
       }
   }
 
-  // Formatadores visuais
   const formatDisplayDate = (isoString: string) => {
       if(!isoString) return '-'
       const date = new Date(isoString)
@@ -170,10 +181,10 @@ export function Presencial() {
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm disabled:opacity-50 min-w-[160px] justify-center"
           >
             {uploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
-            <span>{uploading ? 'Importando...' : 'Importar XLSX'}</span>
+            <span>{uploading ? `Importando ${progress}%` : 'Importar XLSX'}</span>
           </button>
         </div>
       </div>
@@ -184,7 +195,7 @@ export function Presencial() {
         {/* Barra de Status */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <div className="flex items-center gap-2 text-sm text-gray-500">
-             <span>Total de registros no banco: <strong>{records.length}</strong></span>
+             <span>Últimos registros visualizados: <strong>{records.length}</strong></span>
           </div>
           <div className="flex gap-2">
              <button onClick={handleClearHistory} className="p-2 text-red-300 hover:text-red-500 transition-colors" title="Limpar Histórico"><Trash2 className="h-4 w-4" /></button>
