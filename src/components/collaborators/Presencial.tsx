@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Upload, FileSpreadsheet, Search, Filter, RefreshCw, Trash2 } from 'lucide-react'
+import { Upload, FileSpreadsheet, RefreshCw, Trash2 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../../lib/supabase'
 
@@ -13,14 +13,13 @@ export function Presencial() {
   const [records, setRecords] = useState<PresenceRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [progress, setProgress] = useState(0) // Estado para mostrar progresso
+  const [progress, setProgress] = useState(0)
+  const [deleting, setDeleting] = useState(false) // Estado para loading da exclusão
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Função para buscar dados do Supabase (com paginação para não pesar)
+  // Função para buscar dados do Supabase
   const fetchRecords = async () => {
     setLoading(true)
-    // Limitando a busca visual para os últimos 2000 registros para não travar a tela
-    // O banco terá todos, mas mostramos os mais recentes
     const { data, error } = await supabase
       .from('presenca_portaria')
       .select('*')
@@ -66,8 +65,6 @@ export function Presencial() {
         const ws = wb.Sheets[wsname]
         const data = XLSX.utils.sheet_to_json(ws)
 
-        console.log(`Lendo arquivo: ${data.length} linhas encontradas.`)
-
         const recordsToInsert = data.map((row: any) => {
           const nome = findValue(row, ['nome', 'colaborador', 'funcionario']) || 'Desconhecido'
           const tempoRaw = findValue(row, ['tempo', 'data', 'horario'])
@@ -95,21 +92,16 @@ export function Presencial() {
             return
         }
 
-        // --- LÓGICA DE INSERÇÃO EM LOTES (BATCH INSERT) ---
-        const BATCH_SIZE = 100 // Envia de 100 em 100
+        // Lógica de Lotes (Batch)
+        const BATCH_SIZE = 100 
         const totalBatches = Math.ceil(validRecords.length / BATCH_SIZE)
 
         for (let i = 0; i < validRecords.length; i += BATCH_SIZE) {
             const batch = validRecords.slice(i, i + BATCH_SIZE)
-            
             const { error } = await supabase.from('presenca_portaria').insert(batch)
             
-            if (error) {
-                console.error("Erro no lote:", error)
-                throw error
-            }
+            if (error) throw error
 
-            // Atualiza progresso
             const currentBatch = Math.floor(i / BATCH_SIZE) + 1
             const percent = Math.round((currentBatch / totalBatches) * 100)
             setProgress(percent)
@@ -120,7 +112,7 @@ export function Presencial() {
 
       } catch (error) {
         console.error("Erro na importação:", error)
-        alert("Erro ao processar arquivo. Verifique o console.")
+        alert("Erro ao processar arquivo.")
       } finally {
         setUploading(false)
         setProgress(0)
@@ -130,12 +122,30 @@ export function Presencial() {
     reader.readAsBinaryString(file)
   }
 
+  // --- NOVA FUNÇÃO DE EXCLUSÃO ---
   const handleClearHistory = async () => {
-      if(confirm("Tem certeza que deseja apagar TODO o histórico? Isso não pode ser desfeito.")){
-          // Deletar sem where pode ser bloqueado pelo Supabase, então usamos um filtro genérico
-          const { error } = await supabase.from('presenca_portaria').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-          if (error) alert("Erro ao limpar: " + error.message)
-          else fetchRecords()
+      if (!confirm("ATENÇÃO: Isso apagará TODOS os registros de presença importados.\n\nDeseja continuar?")) {
+          return;
+      }
+
+      setDeleting(true)
+      try {
+          // Deleta tudo que não tem um ID impossível (ou seja, tudo)
+          const { error } = await supabase
+            .from('presenca_portaria')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000') 
+          
+          if (error) throw error
+          
+          alert("Base de dados limpa com sucesso.")
+          setRecords([]) // Limpa a tela imediatamente
+          fetchRecords() // Garante sincronia
+
+      } catch (error: any) {
+          alert("Erro ao apagar: " + error.message)
+      } finally {
+          setDeleting(false)
       }
   }
 
@@ -178,6 +188,17 @@ export function Presencial() {
             <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
+          {/* BOTÃO DE EXCLUIR DADOS */}
+          <button 
+            onClick={handleClearHistory}
+            disabled={deleting || records.length === 0}
+            className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg transition-colors shadow-sm disabled:opacity-50 border border-red-200"
+          >
+            {deleting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            <span>{deleting ? 'Excluindo...' : 'Excluir Dados'}</span>
+          </button>
+
+          {/* BOTÃO DE IMPORTAR */}
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
@@ -195,10 +216,7 @@ export function Presencial() {
         {/* Barra de Status */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <div className="flex items-center gap-2 text-sm text-gray-500">
-             <span>Últimos registros visualizados: <strong>{records.length}</strong></span>
-          </div>
-          <div className="flex gap-2">
-             <button onClick={handleClearHistory} className="p-2 text-red-300 hover:text-red-500 transition-colors" title="Limpar Histórico"><Trash2 className="h-4 w-4" /></button>
+             <span>Registros visualizados: <strong>{records.length}</strong></span>
           </div>
         </div>
 
