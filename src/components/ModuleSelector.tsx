@@ -1,4 +1,4 @@
-import { Briefcase, Users, Home, LogOut } from 'lucide-react'
+import { Briefcase, UserCog, Home, LogOut } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface ModuleSelectorProps {
@@ -39,7 +39,7 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl w-full">
             
-            {/* CARD CRM (TEXTO ATUALIZADO) */}
+            {/* CARD CRM */}
             <div 
                 onClick={() => onSelect('crm')}
                 className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-blue-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
@@ -63,16 +63,16 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
                 <p className="text-sm text-gray-500">Administração patrimonial e familiar.</p>
             </div>
 
-            {/* CARD COLABORADORES (TEXTO ATUALIZADO) */}
+            {/* CARD RECURSOS HUMANOS (ATUALIZADO) */}
             <div 
                 onClick={() => onSelect('collaborators')}
                 className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-green-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
             >
                 <div className="p-4 bg-green-50 text-green-700 rounded-full mb-6 group-hover:scale-110 transition-transform">
-                    <Users className="h-10 w-10" />
+                    <UserCog className="h-10 w-10" />
                 </div>
-                <h2 className="text-xl font-bold text-[#112240] mb-2">Colaboradores</h2>
-                <p className="text-sm text-gray-500">Cadastro e gestão de informações dos colaboradores.</p>
+                <h2 className="text-xl font-bold text-[#112240] mb-2">Recursos Humanos</h2>
+                <p className="text-sm text-gray-500">Gestão estratégica de pessoas, benefícios e departamento pessoal.</p>
             </div>
 
         </div>
