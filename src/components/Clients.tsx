@@ -75,7 +75,10 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
         }))
         setClients(formattedClients)
         
+        // ORDENAÇÃO ALFABÉTICA APLICADA AQUI
         const socios = Array.from(new Set(formattedClients.map(c => c.socio).filter(Boolean)))
+            .sort((a, b) => a.localeCompare(b))
+            
         const brindes = Array.from(new Set(formattedClients.map(c => c.tipo_brinde).filter(Boolean)))
         setAvailableSocios(socios)
         setAvailableBrindes(brindes)
@@ -87,8 +90,17 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
     fetchClients()
   }, [tableName])
 
+  // Lógica para ler parâmetros da URL caso o componente seja montado em uma nova janela
   useEffect(() => {
-    if (initialFilters?.socio) setFilterSocio(initialFilters.socio)
+    // Se vier props (navegação interna) usa props, senão tenta ler URL (nova janela)
+    if (initialFilters?.socio) {
+        setFilterSocio(initialFilters.socio)
+    } else {
+        const urlParams = new URLSearchParams(window.location.search)
+        const socioParam = urlParams.get('socio')
+        if (socioParam) setFilterSocio(socioParam)
+    }
+
     if (initialFilters?.brinde) setFilterBrinde(initialFilters.brinde)
   }, [initialFilters])
 
@@ -284,17 +296,37 @@ export function Clients({ initialFilters, tableName = 'clientes' }: ClientsProps
                             <Filter className="h-5 w-5" />
                         </Menu.Button>
                         <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="transform opacity-0 scale-95" enterTo="transform opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="transform opacity-100 scale-100" leaveTo="transform opacity-0 scale-95">
-                            <Menu.Items className="absolute left-0 mt-2 w-56 origin-top-left rounded-xl bg-white shadow-xl border border-gray-200 p-2 z-50">
-                                <div className="space-y-2">
+                            <Menu.Items className="absolute left-0 mt-2 w-64 origin-top-left rounded-xl bg-white shadow-xl border border-gray-200 p-3 z-50">
+                                <div className="space-y-3">
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase px-2">Sócio</label>
-                                        <select value={filterSocio} onChange={(e) => setFilterSocio(e.target.value)} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-                                            <option value="">Todos</option>
-                                            {availableSocios.map(s => <option key={s} value={s}>{s}</option>)}
-                                        </select>
+                                        <label className="text-xs font-bold text-gray-500 uppercase px-1">Sócio</label>
+                                        <div className="mt-1 border border-gray-200 rounded-lg max-h-48 overflow-y-auto bg-gray-50">
+                                            <button 
+                                                onClick={() => setFilterSocio('')}
+                                                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-100 transition-colors ${filterSocio === '' ? 'font-bold text-blue-700 bg-blue-50' : 'text-gray-600'}`}
+                                            >
+                                                Todos (Limpar)
+                                            </button>
+                                            {availableSocios.map(s => (
+                                                <button 
+                                                    key={s} 
+                                                    onClick={() => {
+                                                        // Abre nova janela com filtro via URL mantendo UI padrão
+                                                        const url = new URL(window.location.href)
+                                                        url.searchParams.set('socio', s)
+                                                        window.open(url.toString(), '_blank')
+                                                    }}
+                                                    className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-100 transition-colors border-t border-gray-100 ${filterSocio === s ? 'font-bold text-blue-700 bg-blue-50' : 'text-gray-600'}`}
+                                                    title="Clique para abrir relação em nova janela"
+                                                >
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
+
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase px-2">Tipo Brinde</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase px-1">Tipo Brinde</label>
                                         <select value={filterBrinde} onChange={(e) => setFilterBrinde(e.target.value)} className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                                             <option value="">Todos</option>
                                             {availableBrindes.map(b => <option key={b} value={b}>{b}</option>)}
