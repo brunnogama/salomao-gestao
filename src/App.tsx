@@ -160,7 +160,9 @@ export default function App() {
   if (loggingOut) return <div className="h-screen w-full flex items-center justify-center bg-[#112240]"><div className="text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div><p className="text-white text-sm">Saindo...</p></div></div>
   if (!session) return <Login />
 
+  // Lógica de Roteamento de Módulos
   if (currentModule === 'home') return <ModuleSelector onSelect={handleModuleSelect} userName={getUserDisplayName()} />
+  // Apenas o módulo Família está bloqueado globalmente
   if (currentModule === 'family') return <UnderConstruction moduleName="Gestão da Família" onBack={() => setCurrentModule('home')} />
 
   return (
@@ -224,6 +226,7 @@ export default function App() {
                   {/* ROTAS DO RH */}
                   {currentModule === 'collaborators' && (
                     <>
+                      {/* Dashboard e Presencial renderizam placeholders dentro do layout */}
                       {activePage === 'dashboard' && <UnderConstruction moduleName="Dashboard RH" onBack={() => {}} showBackButton={false} />}
                       {activePage === 'presencial' && <UnderConstruction moduleName="Controle Presencial" onBack={() => {}} showBackButton={false} />}
                       {activePage === 'kanban' && <Kanban />}
