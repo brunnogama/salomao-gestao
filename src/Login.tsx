@@ -75,7 +75,7 @@ export default function Login() {
                   onChange={(e) => setEmailPrefix(e.target.value.toLowerCase().replace(/\s/g, ''))}
                   style={{ caretColor: '#112240' }} 
                   className="block flex-1 border-0 bg-transparent py-3 pl-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 outline-none sm:text-sm sm:leading-6"
-                  placeholder="nome.sobrenome"
+                  placeholder="usuário"
                 />
                 <span className="flex select-none items-center bg-gray-50 px-3 text-gray-500 sm:text-sm font-medium border-l border-gray-200 group-focus-within:bg-blue-50 group-focus-within:text-blue-900 group-focus-within:border-blue-100 transition-colors">
                   @salomaoadv.com.br
