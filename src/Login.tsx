@@ -199,6 +199,14 @@ export default function Login() {
                     <span className="text-xs text-gray-400">Portal de RH e Time</span>
                 </div>
             </div>
+            {/* NOVO MÓDULO FINANCEIRO */}
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-default backdrop-blur-sm">
+                <span className="w-2 h-8 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></span>
+                <div>
+                    <strong className="block text-sm text-white">Financeiro</strong>
+                    <span className="text-xs text-gray-400">Notas e Faturamento</span>
+                </div>
+            </div>
           </div>
         </div>
       </div>
