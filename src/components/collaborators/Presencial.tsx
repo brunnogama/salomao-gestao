@@ -277,113 +277,210 @@ export function Presencial() {
     return null
   }
 
-  // --- UPLOADS ---
+  // --- UPLOAD DE PRESENÇA (ATUALIZADO) ---
   const handlePresenceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    setUploading(true); setProgress(0);
+    const file = e.target.files?.[0]; 
+    if (!file) return;
+    
+    setUploading(true); 
+    setProgress(0);
+    
     const reader = new FileReader();
+    
     reader.onload = async (evt) => {
       try {
         const wb = XLSX.read(evt.target?.result, { type: 'binary' });
-        const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        const ws = wb.Sheets[wb.SheetNames[0]];
         
-        const rawRecords = data.map((row: any) => {
-          let nome = findValue(row, ['nome', 'colaborador', 'funcionario']) || 'Desconhecido'
-          if (typeof nome === 'string') nome = nome.trim()
-          
-          const tempoRaw = findValue(row, ['tempo', 'data', 'horario'])
-          let dataFinal: Date | null = null
-          
-          // PARSING SIMPLIFICADO PARA PLANILHA LIMPA (SÓ DATA)
-          if (typeof tempoRaw === 'string') {
-               // Esperado: "2025-12-02" ou "02/12/2025" dependendo do Excel
-               // Tenta converter diretamente
-               const datePart = tempoRaw.trim()
-               // Se for YYYY-MM-DD
-               const parts = datePart.split('-')
-               if (parts.length === 3) {
-                   const y = parseInt(parts[0])
-                   const m = parseInt(parts[1]) - 1 
-                   const d = parseInt(parts[2])
-                   dataFinal = new Date(Date.UTC(y, m, d, 12, 0, 0))
-               } else {
-                   // Fallback para datas com /
-                   const partsSlash = datePart.split('/')
-                   if (partsSlash.length === 3) {
-                        // Assume DD/MM/YYYY
-                       const d = parseInt(partsSlash[0])
-                       const m = parseInt(partsSlash[1]) - 1
-                       const y = parseInt(partsSlash[2])
-                       dataFinal = new Date(Date.UTC(y, m, d, 12, 0, 0))
-                   } else {
-                       dataFinal = new Date(tempoRaw) // Tenta nativo
-                   }
-               }
-          }
-          else if (typeof tempoRaw === 'number') {
-               // Excel serial date (dias desde 1900)
-               const dateObj = new Date((tempoRaw - 25569) * 86400 * 1000)
-               dataFinal = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 12, 0, 0))
-          }
-
-          if (!dataFinal || isNaN(dataFinal.getTime())) return null;
-          
-          return { nome_colaborador: nome, data_hora: dataFinal, arquivo_origem: file.name }
-        }).filter((r:any) => r && r.nome_colaborador !== 'Desconhecido')
-
-        // DEDUPLICAÇÃO
-        const uniqueSet = new Set();
+        // ===== PASSO 1: CONVERTER SHEET PARA ARRAY, PULANDO AS 7 PRIMEIRAS LINHAS =====
+        const allData = XLSX.utils.sheet_to_json(ws, { 
+          header: 1,  // Retorna array de arrays (não objetos)
+          raw: false  // Mantém strings quando possível
+        }) as any[][];
         
-        // Verifica duplicatas na importação atual E no banco
-        const existingSignatures = new Set(records.map(r => {
-             const d = new Date(r.data_hora);
-             const dateStr = d.toISOString().split('T')[0]; 
-             return `${normalizeKey(r.nome_colaborador)}_${dateStr}`
-        }));
-
-        const recordsToInsert = rawRecords.filter((r: any) => {
-            const d = r.data_hora;
-            const dateStr = d.toISOString().split('T')[0]; 
-            const key = `${normalizeKey(r.nome_colaborador)}_${dateStr}`;
+        // Remove as 7 primeiras linhas (cabeçalho)
+        const dataRows = allData.slice(7);
+        
+        console.log(`Total de linhas após pular cabeçalho: ${dataRows.length}`);
+        
+        // ===== PASSO 2: PROCESSAR CADA LINHA =====
+        const rawRecords = dataRows
+          .map((row: any[]) => {
+            // Assume estrutura: [Nome, Departamento, Tempo]
+            // Coluna 0: Nome
+            // Coluna 1: Departamento (ignorar)
+            // Coluna 2: Tempo (data e hora)
             
-            if (uniqueSet.has(key)) return false;
-            if (existingSignatures.has(key)) return false;
-
-            uniqueSet.add(key);
-            return true;
+            if (!row || row.length < 3) return null;
+            
+            let nome = row[0];
+            const tempoRaw = row[2];
+            
+            // Valida nome
+            if (!nome || typeof nome !== 'string' || nome.trim() === '') return null;
+            nome = nome.trim();
+            
+            // ===== PASSO 3: PROCESSAR CAMPO TEMPO (data + hora) =====
+            let dataFinal: Date | null = null;
+            
+            if (typeof tempoRaw === 'string') {
+              const tempoStr = tempoRaw.trim();
+              
+              // Formato esperado: "YYYY-MM-DD HH:MM:SS" ou "DD/MM/YYYY HH:MM:SS"
+              // Vamos extrair apenas a parte da data (antes do espaço)
+              const parts = tempoStr.split(' ');
+              const datePart = parts[0];
+              
+              // Tenta formato YYYY-MM-DD
+              if (datePart.includes('-')) {
+                const [year, month, day] = datePart.split('-').map(p => parseInt(p));
+                if (year && month && day) {
+                  dataFinal = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+                }
+              }
+              // Tenta formato DD/MM/YYYY
+              else if (datePart.includes('/')) {
+                const [day, month, year] = datePart.split('/').map(p => parseInt(p));
+                if (year && month && day) {
+                  dataFinal = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+                }
+              }
+            }
+            // Se for número (serial do Excel)
+            else if (typeof tempoRaw === 'number') {
+              const dateObj = new Date((tempoRaw - 25569) * 86400 * 1000);
+              dataFinal = new Date(Date.UTC(
+                dateObj.getUTCFullYear(), 
+                dateObj.getUTCMonth(), 
+                dateObj.getUTCDate(), 
+                12, 0, 0
+              ));
+            }
+            
+            // Valida data
+            if (!dataFinal || isNaN(dataFinal.getTime())) {
+              console.warn(`Data inválida para ${nome}: ${tempoRaw}`);
+              return null;
+            }
+            
+            return { 
+              nome_colaborador: nome, 
+              data_hora: dataFinal, 
+              arquivo_origem: file.name 
+            };
+          })
+          .filter((r: any) => r !== null);
+        
+        console.log(`Registros válidos extraídos: ${rawRecords.length}`);
+        
+        // ===== PASSO 4: DEDUPLICAÇÃO =====
+        // 4.1 - Buscar registros existentes no banco para este período
+        const uniqueSet = new Set<string>();
+        
+        // Pega todas as datas únicas dos novos registros
+        const allDates = rawRecords.map((r: any) => r.data_hora);
+        const minDate = new Date(Math.min(...allDates.map((d: Date) => d.getTime())));
+        const maxDate = new Date(Math.max(...allDates.map((d: Date) => d.getTime())));
+        
+        // Busca registros existentes neste intervalo
+        const { data: existingRecords } = await supabase
+          .from('presenca_portaria')
+          .select('nome_colaborador, data_hora')
+          .gte('data_hora', minDate.toISOString())
+          .lte('data_hora', maxDate.toISOString());
+        
+        // 4.2 - Criar set com assinaturas existentes (nome_data)
+        const existingSignatures = new Set<string>();
+        if (existingRecords) {
+          existingRecords.forEach(r => {
+            const d = new Date(r.data_hora);
+            const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
+            const key = `${normalizeKey(r.nome_colaborador)}_${dateStr}`;
+            existingSignatures.add(key);
+          });
+        }
+        
+        console.log(`Registros já existentes no período: ${existingSignatures.size}`);
+        
+        // 4.3 - Filtrar registros novos (remove duplicatas internas E do banco)
+        const recordsToInsert = rawRecords.filter((r: any) => {
+          const d = r.data_hora;
+          const dateStr = d.toISOString().split('T')[0];
+          const key = `${normalizeKey(r.nome_colaborador)}_${dateStr}`;
+          
+          // Já existe no banco?
+          if (existingSignatures.has(key)) return false;
+          
+          // Já foi processado neste upload?
+          if (uniqueSet.has(key)) return false;
+          
+          // Marca como processado
+          uniqueSet.add(key);
+          return true;
         });
-
-        const BATCH_SIZE = 1000; 
-        const total = Math.ceil(recordsToInsert.length / BATCH_SIZE)
+        
+        const duplicatesSkipped = rawRecords.length - recordsToInsert.length;
+        console.log(`Registros únicos para inserir: ${recordsToInsert.length}`);
+        console.log(`Duplicatas ignoradas: ${duplicatesSkipped}`);
+        
+        // ===== PASSO 5: INSERÇÃO EM LOTE =====
+        if (recordsToInsert.length === 0) {
+          alert('Nenhum registro novo para importar. Todos já existem no sistema.');
+          setUploading(false);
+          if (presenceInputRef.current) presenceInputRef.current.value = '';
+          return;
+        }
+        
+        const BATCH_SIZE = 1000;
+        const totalBatches = Math.ceil(recordsToInsert.length / BATCH_SIZE);
         
         for (let i = 0; i < recordsToInsert.length; i += BATCH_SIZE) {
-            const batch = recordsToInsert.slice(i, i + BATCH_SIZE).map(r => ({
-                nome_colaborador: r.nome_colaborador,
-                data_hora: r.data_hora, // Objeto Date, Supabase converte para ISO UTC
-                arquivo_origem: file.name
-            }))
-            
-            await supabase.from('presenca_portaria').insert(batch)
-            setProgress(Math.round(((i / BATCH_SIZE) + 1) / total * 100))
+          const batch = recordsToInsert.slice(i, i + BATCH_SIZE).map((r: any) => ({
+            nome_colaborador: r.nome_colaborador,
+            data_hora: r.data_hora.toISOString(), // Converte para ISO string
+            arquivo_origem: r.arquivo_origem
+          }));
+          
+          const { error } = await supabase
+            .from('presenca_portaria')
+            .insert(batch);
+          
+          if (error) {
+            console.error('Erro ao inserir batch:', error);
+            throw error;
+          }
+          
+          setProgress(Math.round(((i / BATCH_SIZE) + 1) / totalBatches * 100));
         }
         
-        const skipped = rawRecords.length - recordsToInsert.length;
-        alert(`${recordsToInsert.length} registros novos importados! (${skipped} duplicados/ignorados)`); 
+        // ===== PASSO 6: FEEDBACK E ATUALIZAÇÃO =====
+        alert(
+          `✅ Importação concluída!\n\n` +
+          `• ${recordsToInsert.length} registros NOVOS importados\n` +
+          `• ${duplicatesSkipped} duplicatas ignoradas\n` +
+          `• ${rawRecords.length} linhas processadas`
+        );
         
+        // Atualiza para o mês do primeiro registro importado
         if (recordsToInsert.length > 0) {
-            const firstDate = new Date(recordsToInsert[0].data_hora)
-            setSelectedMonth(firstDate.getUTCMonth())
-            setSelectedYear(firstDate.getUTCFullYear())
-            // O useEffect vai disparar o fetchRecords
+          const firstDate = new Date(recordsToInsert[0].data_hora);
+          setSelectedMonth(firstDate.getUTCMonth());
+          setSelectedYear(firstDate.getUTCFullYear());
         } else {
-            fetchRecords()
+          fetchRecords();
         }
-
-      } catch (err) { alert("Erro ao importar.") } 
-      finally { setUploading(false); if (presenceInputRef.current) presenceInputRef.current.value = '' }
-    }
-    reader.readAsBinaryString(file)
-  }
+        
+      } catch (err) {
+        console.error('Erro ao processar arquivo:', err);
+        alert('❌ Erro ao importar arquivo. Verifique o formato da planilha.');
+      } finally {
+        setUploading(false);
+        if (presenceInputRef.current) presenceInputRef.current.value = '';
+      }
+    };
+    
+    reader.readAsBinaryString(file);
+  };
 
   const handleSocioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
