@@ -1,14 +1,3 @@
-CONTEXTO: Estou enviando o código oficial e atualizado do arquivo: Presencial.tsx
-
-Atualize esse e me peça o restante que eu vou enviando, vamos atualizar um arquivo por vez.
-Veja se precisamos criar tabelas no Supabase
-
-SUA TAREFA: 
-1.Coloque um botao de exportar na aba Descritivo, nos mesmos moldes do da aba Relatório
-2. Coloque o icone com as iniciais na frente de cada nome, identico ao que tem na aba Relatório em Descritivo e em Regras
-3. Remova o titulo e o subtitulo Controle de Presença Gestão de acessos e regras de sócios, pois ja tem no App.tsx, mova os botoes de aba para o lugar deles
-4. IMPORTANTE, nao mexa na logica do codigo, apenas se prenda ao que estou solicitando acima
-CÓDIGO FONTE:
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { 
   Upload, FileSpreadsheet, RefreshCw, Download,
@@ -65,7 +54,6 @@ export function Presencial() {
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // --- NAVEGAÇÃO ---
-  // Atualizado para incluir 'descriptive'
   const [viewMode, setViewMode] = useState<'report' | 'descriptive' | 'socios'>('report')
   
   // Inicializa com o mês atual
@@ -576,34 +564,60 @@ export function Presencial() {
 
   // --- EXPORTAR XLSX ---
   const handleExportXLSX = () => {
-    // Prepara dados para exportação baseado no filtro atual
-    const dataToExport = reportData.map(item => ({
-      'Colaborador': item.nome,
-      'Sócio Responsável': item.socio !== '-' ? item.socio : 'Sem Sócio',
-      'Dias Presentes': item.diasPresentes,
-      'Segunda': item.diasSemana['Seg'] || 0,
-      'Terça': item.diasSemana['Ter'] || 0,
-      'Quarta': item.diasSemana['Qua'] || 0,
-      'Quinta': item.diasSemana['Qui'] || 0,
-      'Sexta': item.diasSemana['Sex'] || 0,
-      'Sábado': item.diasSemana['Sáb'] || 0,
-      'Domingo': item.diasSemana['Dom'] || 0
-    }))
+    let dataToExport: any[] = [];
+    let sheetName = 'Dados';
+    let fileName = 'Presencial';
+
+    if (viewMode === 'report') {
+        dataToExport = reportData.map(item => ({
+            'Colaborador': item.nome,
+            'Sócio Responsável': item.socio !== '-' ? item.socio : 'Sem Sócio',
+            'Dias Presentes': item.diasPresentes,
+            'Segunda': item.diasSemana['Seg'] || 0,
+            'Terça': item.diasSemana['Ter'] || 0,
+            'Quarta': item.diasSemana['Qua'] || 0,
+            'Quinta': item.diasSemana['Qui'] || 0,
+            'Sexta': item.diasSemana['Sex'] || 0,
+            'Sábado': item.diasSemana['Sáb'] || 0,
+            'Domingo': item.diasSemana['Dom'] || 0
+        }));
+        sheetName = 'Relatório';
+    } else if (viewMode === 'descriptive') {
+        const weekDays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+        dataToExport = descriptiveData.map(item => {
+            const normName = normalizeKey(item.nome_colaborador)
+            const socioRaw = socioMap.get(normName) || '-'
+            const dateObj = new Date(item.data_hora);
+            return {
+                'Colaborador': toTitleCase(item.nome_colaborador),
+                'Sócio Responsável': toTitleCase(socioRaw),
+                'Data': dateObj.toLocaleDateString('pt-BR'),
+                'Dia da Semana': weekDays[dateObj.getUTCDay()]
+            };
+        });
+        sheetName = 'Descritivo';
+        fileName = 'Presencial_Descritivo';
+    } else {
+        return; // Não exporta na aba Sócios por enquanto ou sem viewMode válido
+    }
+
+    if (dataToExport.length === 0) return alert('Sem dados para exportar.');
 
     // Cria worksheet e workbook
     const ws = XLSX.utils.json_to_sheet(dataToExport)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Presença')
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
 
-    // Define nome do arquivo
-    let fileName = 'Presencial'
-    if (filterColaborador) {
-      fileName = `Presencial_${filterColaborador.replace(/\s+/g, '_')}`
-    } else if (filterSocio) {
-      fileName = `Presencial_Socio_${filterSocio.replace(/\s+/g, '_')}`
-    } else {
-      const monthName = months[selectedMonth]
-      fileName = `Presencial_${monthName}_${selectedYear}`
+    // Ajusta nome do arquivo
+    if (viewMode === 'report') {
+        if (filterColaborador) {
+            fileName = `Presencial_${filterColaborador.replace(/\s+/g, '_')}`
+        } else if (filterSocio) {
+            fileName = `Presencial_Socio_${filterSocio.replace(/\s+/g, '_')}`
+        } else {
+            const monthName = months[selectedMonth]
+            fileName = `Presencial_${monthName}_${selectedYear}`
+        }
     }
 
     // Download
@@ -649,9 +663,12 @@ export function Presencial() {
       {/* HEADER PRINCIPAL */}
       <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-                <h2 className="text-2xl font-bold text-[#112240]">Controle de Presença</h2>
-                <p className="text-sm text-gray-500">Gestão de acessos e regras de sócios</p>
+            
+            {/* 1. SELETORES DE VISUALIZAÇÃO (MOVIDO PARA O TOPO) */}
+            <div className="flex bg-gray-100 p-1 rounded-lg w-full md:w-auto overflow-x-auto">
+                <button onClick={() => setViewMode('report')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${viewMode === 'report' ? 'bg-white text-[#112240] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><BarChart3 className="h-4 w-4" /> Relatório</button>
+                <button onClick={() => setViewMode('descriptive')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${viewMode === 'descriptive' ? 'bg-white text-[#112240] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><FileText className="h-4 w-4" /> Descritivo</button>
+                <button onClick={() => setViewMode('socios')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${viewMode === 'socios' ? 'bg-white text-[#112240] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><Briefcase className="h-4 w-4" /> Regras</button>
             </div>
             
             <div className="flex items-center gap-2">
@@ -666,7 +683,8 @@ export function Presencial() {
                   <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
                 </button>
 
-                {viewMode === 'report' && reportData.length > 0 && (
+                {/* BOTÃO EXPORTAR ATUALIZADO PARA FUNCIONAR EM REPORT E DESCRIPTIVE */}
+                {(viewMode === 'report' || viewMode === 'descriptive') && (reportData.length > 0 || descriptiveData.length > 0) && (
                   <button 
                     onClick={handleExportXLSX} 
                     className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
@@ -687,16 +705,11 @@ export function Presencial() {
             </div>
         </div>
 
-        {/* BARRA DE FERRAMENTAS: FILTROS E VIEW */}
+        {/* BARRA DE FERRAMENTAS: FILTROS */}
         <div className="flex flex-col lg:flex-row items-center justify-between border-t border-gray-100 pt-4 gap-4">
             
-            {/* 1. SELETORES DE VISUALIZAÇÃO */}
-            <div className="flex bg-gray-100 p-1 rounded-lg w-full lg:w-auto overflow-x-auto">
-                <button onClick={() => setViewMode('report')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${viewMode === 'report' ? 'bg-white text-[#112240] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><BarChart3 className="h-4 w-4" /> Relatório</button>
-                {/* NOVA ABA DESCRITIVO */}
-                <button onClick={() => setViewMode('descriptive')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${viewMode === 'descriptive' ? 'bg-white text-[#112240] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><FileText className="h-4 w-4" /> Descritivo</button>
-                <button onClick={() => setViewMode('socios')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${viewMode === 'socios' ? 'bg-white text-[#112240] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><Briefcase className="h-4 w-4" /> Regras</button>
-            </div>
+            {/* ESPAÇO VAZIO PARA MANTER O ALINHAMENTO A DIREITA SE NECESSÁRIO, OU APENAS O FLEX START */}
+            <div className="hidden lg:block"></div>
 
             {/* 2. ÁREA DE PESQUISA E FILTROS */}
             <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
@@ -883,11 +896,20 @@ export function Presencial() {
                                 const socioFormatted = toTitleCase(socioRaw)
                                 const dateObj = new Date(record.data_hora)
                                 const weekDays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
+                                const displayName = toTitleCase(record.nome_colaborador)
 
                                 return (
                                     <tr key={record.id || idx} className="hover:bg-blue-50/40 transition-colors">
                                         <td className="px-6 py-4">
-                                            <p className="font-semibold text-[#112240] text-base">{toTitleCase(record.nome_colaborador)}</p>
+                                            {/* ADICIONADO ÍCONE COM INICIAIS */}
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                                                    {displayName.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-[#112240] text-base">{displayName}</p>
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="text-gray-700 text-sm">
@@ -932,35 +954,46 @@ export function Presencial() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {filteredData.filteredRules.map((rule) => (
-                            <tr key={rule.id} className="hover:bg-gray-50 transition-colors group">
-                                <td className="px-6 py-4 font-semibold text-[#112240] text-base">{toTitleCase(rule.nome_colaborador)}</td>
-                                <td className="px-6 py-4 text-gray-700">{toTitleCase(rule.socio_responsavel)}</td>
-                                <td className="px-6 py-4 text-center">
-                                    <span className="inline-flex items-center justify-center bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-200 font-bold text-sm min-w-[60px]">
-                                        {rule.meta_semanal}x
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={() => handleOpenModal(rule)} 
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="Editar"
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </button>
-                                        <button 
-                                            onClick={() => handleDeleteRule(rule.id)} 
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Excluir"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
+                        {filteredData.filteredRules.map((rule) => {
+                             const displayName = toTitleCase(rule.nome_colaborador)
+                             return (
+                                <tr key={rule.id} className="hover:bg-gray-50 transition-colors group">
+                                    <td className="px-6 py-4">
+                                         {/* ADICIONADO ÍCONE COM INICIAIS */}
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                                                {displayName.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                            </div>
+                                            <p className="font-semibold text-[#112240] text-base">{displayName}</p>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-700">{toTitleCase(rule.socio_responsavel)}</td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className="inline-flex items-center justify-center bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-200 font-bold text-sm min-w-[60px]">
+                                            {rule.meta_semanal}x
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                onClick={() => handleOpenModal(rule)} 
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="Editar"
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteRule(rule.id)} 
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Excluir"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                             )
+                        })}
                     </tbody>
                     </table>
                  )}
