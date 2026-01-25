@@ -75,6 +75,9 @@ export function Settings() {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' })
   
+  // Controle de Módulos (Tabs)
+  const [activeModule, setActiveModule] = useState<'geral' | 'crm' | 'juridico' | 'rh' | 'sistema'>('geral')
+  
   const [users, setUsers] = useState<AppUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [isUserModalOpen, setIsUserModalOpen] = useState(false)
@@ -85,7 +88,7 @@ export function Settings() {
   const [loadingConfig, setLoadingConfig] = useState(false)
 
   const [showAllVersions, setShowAllVersions] = useState(false)
-  
+   
   const [currentUserRole, setCurrentUserRole] = useState<string>('')
   const isAdmin = ['Administrador', 'Admin'].includes(currentUserRole)
 
@@ -283,7 +286,7 @@ export function Settings() {
   const handleSystemReset = async () => {
     if (!isAdmin) return alert("Ação restrita a administradores.");
 
-    if (!confirm('PERIGO: Isso apagará TODOS os dados. Tem certeza?')) return;
+    if (!confirm('PERIGO: Isso apagará TODOS os dados do SISTEMA (Clientes, Tarefas, etc). Tem certeza?')) return;
     
     const confirmText = prompt('Digite APAGAR para confirmar:')
     if (confirmText !== 'APAGAR') return;
@@ -303,6 +306,35 @@ export function Settings() {
     } catch (error: any) {
         console.error("Erro:", error)
         setStatus({ type: 'error', message: 'Erro: ' + error.message })
+    } finally {
+        setLoading(false)
+    }
+  }
+
+  // --- NOVO: RESET ESPECÍFICO DE RH (PRESENÇA) ---
+  const handleResetPresence = async () => {
+    if (!isAdmin) return alert("Ação restrita a administradores.");
+    
+    if (!confirm('ATENÇÃO: Isso apagará TODO o histórico de registros de entrada/saída (Presença). Confirmar?')) return;
+
+    const confirmText = prompt('Digite APAGAR para confirmar o reset da Presença:')
+    if (confirmText !== 'APAGAR') return;
+
+    setLoading(true)
+    setStatus({ type: null, message: 'Limpando registros de presença...' })
+
+    try {
+        // Deleta todos os registros que não sejam o 'ghost record' se houver, ou apenas deleta tudo
+        const { error } = await supabase.from('presenca_portaria').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+        
+        if (error) throw error
+
+        setStatus({ type: 'success', message: 'Base de Presença resetada com sucesso!' })
+        await logAction('RESET', 'RH', 'Resetou base de presença')
+
+    } catch (error: any) {
+        console.error("Erro:", error)
+        setStatus({ type: 'error', message: 'Erro ao resetar presença: ' + error.message })
     } finally {
         setLoading(false)
     }
@@ -380,13 +412,47 @@ export function Settings() {
                       <Lock className="h-5 w-5 text-yellow-400" aria-hidden="true" />
                   </div>
                   <div className="ml-3">
-                      <p className="text-sm text-yellow-700">
-                          Modo de Visualização: Você está logado como <strong>{currentUserRole}</strong>. Apenas Administradores podem realizar alterações nesta página.
-                      </p>
+                      <div className="text-sm text-yellow-700">
+                          <p>Modo de Visualização: Você está logado como <strong>{currentUserRole}</strong>. Apenas Administradores podem realizar alterações nesta página.</p>
+                      </div>
                   </div>
               </div>
           </div>
       )}
+
+      {/* SELETOR DE MÓDULOS */}
+      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+          <button 
+            onClick={() => setActiveModule('geral')} 
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'geral' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+          >
+            <Shield className="h-4 w-4" /> Geral
+          </button>
+          <button 
+            onClick={() => setActiveModule('crm')} 
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'crm' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-blue-50'}`}
+          >
+            <Briefcase className="h-4 w-4" /> CRM
+          </button>
+          <button 
+            onClick={() => setActiveModule('juridico')} 
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'juridico' ? 'bg-[#112240] text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+          >
+            <Lock className="h-4 w-4" /> Jurídico
+          </button>
+          <button 
+            onClick={() => setActiveModule('rh')} 
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'rh' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50'}`}
+          >
+            <Users className="h-4 w-4" /> RH
+          </button>
+          <button 
+            onClick={() => setActiveModule('sistema')} 
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'sistema' ? 'bg-red-600 text-white' : 'bg-white text-gray-600 hover:bg-red-50'}`}
+          >
+            <Code className="h-4 w-4" /> Sistema
+          </button>
+      </div>
       
       {/* MODAL USUÁRIO */}
       {isUserModalOpen && (
@@ -419,463 +485,445 @@ export function Settings() {
         </div>
       )}
 
-      {/* LINHA 1: GESTÃO USUÁRIOS + SEGURANÇA MAGISTRADOS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* GESTÃO DE USUÁRIOS */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gray-100 rounded-lg"><Users className="h-5 w-5 text-gray-700" /></div>
-                  <div>
-                      <h3 className="font-bold text-gray-900 text-base">Gestão de Usuários</h3>
-                      <p className="text-xs text-gray-500">Controle de acesso ao sistema</p>
+      {/* FEEDBACK STATUS GLOBAL */}
+      {status.type && (
+        <div className={`p-4 rounded-lg flex items-start gap-3 ${
+            status.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        }`}>
+            <div className="flex-shrink-0">
+                {status.type === 'success' ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                ) : (
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                )}
+            </div>
+            <p className={`text-sm font-medium ${status.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                {status.message}
+            </p>
+        </div>
+      )}
+
+      {/* --- CONTEÚDO: MÓDULO GERAL --- */}
+      {activeModule === 'geral' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in">
+            {/* GESTÃO DE USUÁRIOS */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-100 rounded-lg"><Users className="h-5 w-5 text-gray-700" /></div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 text-base">Gestão de Usuários</h3>
+                            <p className="text-xs text-gray-500">Controle de acesso ao sistema</p>
+                        </div>
+                    </div>
+                    <button 
+                    onClick={() => openUserModal()} 
+                    disabled={!isAdmin}
+                    className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg font-bold transition-colors ${isAdmin ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gray-50 text-gray-400 cursor-not-allowed opacity-60'}`}
+                    >
+                        <UserPlus className="h-4 w-4" /> Novo
+                    </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase">
+                                <th className="py-2 px-2 font-semibold">Nome</th>
+                                <th className="py-2 px-2 font-semibold">Email</th>
+                                <th className="py-2 px-2 font-semibold">Status</th>
+                                <th className="py-2 px-2 text-right font-semibold">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-sm">
+                            {loadingUsers ? (
+                                <tr><td colSpan={4} className="py-4 text-center text-gray-400 text-xs">Carregando...</td></tr>
+                            ) : users.map(user => (
+                                <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50">
+                                    <td className="py-2.5 px-2 font-medium text-gray-900 text-xs">{user.nome}</td>
+                                    <td className="py-2.5 px-2 text-gray-600 text-xs">{user.email}</td>
+                                    <td className="py-2.5 px-2">
+                                        {user.ativo ? 
+                                        <span className="inline-flex items-center gap-1 text-green-700 text-xs font-medium"><Check className="h-3 w-3" /> Ativo</span> : 
+                                        <span className="inline-flex items-center gap-1 text-red-600 text-xs font-medium"><Ban className="h-3 w-3" /> Bloqueado</span>
+                                        }
+                                    </td>
+                                    <td className="py-2.5 px-2 text-right">
+                                        <div className={`inline-flex gap-1 ${!isAdmin ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <button onClick={(e) => { e.stopPropagation(); handleToggleActive(user); }} disabled={!isAdmin} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title={user.ativo ? "Bloquear" : "Ativar"}>
+                                                <Shield className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); openUserModal(user); }} disabled={!isAdmin} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title="Editar">
+                                                <Pencil className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(user); }} disabled={!isAdmin} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title="Excluir">
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+          </div>
+      )}
+
+      {/* --- CONTEÚDO: MÓDULO JURÍDICO --- */}
+      {activeModule === 'juridico' && (
+          <div className="animate-in fade-in">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-w-2xl">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-gray-100 rounded-lg"><Lock className="h-5 w-5 text-gray-700" /></div>
+                    <div>
+                        <h3 className="font-bold text-gray-900 text-base">Segurança: Módulo Magistrados</h3>
+                        <p className="text-xs text-gray-500">Controle de acesso à área restrita</p>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-2">PIN de Acesso (4 dígitos)</label>
+                        <input 
+                            type="text" 
+                            maxLength={4}
+                            value={magistradosConfig.pin}
+                            readOnly={!isAdmin}
+                            onChange={e => setMagistradosConfig({...magistradosConfig, pin: e.target.value.replace(/\D/g,'')})}
+                            className={`w-full border border-gray-300 rounded-lg p-3 font-mono text-center tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-gray-900 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                            placeholder="0000"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Emails Permitidos (separar por vírgula)</label>
+                        <textarea 
+                            rows={4}
+                            value={magistradosConfig.emails}
+                            readOnly={!isAdmin}
+                            onChange={e => setMagistradosConfig({...magistradosConfig, emails: e.target.value})}
+                            className={`w-full border border-gray-300 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                            placeholder="email1@salomao.adv.br, email2@salomao.adv.br"
+                        />
+                    </div>
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <button 
+                        onClick={handleSaveConfigMagistrados}
+                        disabled={loadingConfig || !isAdmin}
+                        className={`px-4 py-2.5 font-bold rounded-lg flex items-center gap-2 ${isAdmin ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                    >
+                        <Save className="h-4 w-4" /> Salvar
+                    </button>
+                </div>
+            </div>
+          </div>
+      )}
+
+      {/* --- CONTEÚDO: MÓDULO CRM --- */}
+      {activeModule === 'crm' && (
+          <div className="space-y-6 animate-in fade-in">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* CRUD TIPOS DE BRINDE */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-gray-100 rounded-lg"><Tag className="h-5 w-5 text-gray-700" /></div>
+                            <h3 className="font-bold text-gray-900 text-sm">Tipos de Brinde</h3>
+                        </div>
+                        {isAdmin && (
+                            <button 
+                                onClick={() => setIsAddingBrinde(!isAddingBrinde)} 
+                                className={`p-1.5 rounded-lg transition-colors ${isAddingBrinde ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                            >
+                                {isAddingBrinde ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                            </button>
+                        )}
+                    </div>
+
+                    {isAddingBrinde && (
+                        <div className="flex gap-2 mb-4 animate-in fade-in slide-in-from-top-2">
+                            <input 
+                                value={newBrinde}
+                                onChange={(e) => setNewBrinde(e.target.value)}
+                                placeholder="Novo tipo..."
+                                className="flex-1 text-xs border border-blue-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddBrinde()}
+                            />
+                            <button onClick={handleAddBrinde} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">OK</button>
+                        </div>
+                    )}
+
+                    <div className="flex-1 overflow-y-auto max-h-48 custom-scrollbar space-y-1">
+                        {brindes.map(item => (
+                            <div key={item.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg group">
+                                <span className="text-xs text-gray-700 font-medium">{item.nome}</span>
+                                {isAdmin && (
+                                    <button 
+                                        onClick={() => handleDeleteBrinde(item.id, item.nome)}
+                                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all p-1"
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        {brindes.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Nenhum registro</p>}
+                    </div>
+                </div>
+
+                {/* CRUD SÓCIOS */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-gray-100 rounded-lg"><Briefcase className="h-5 w-5 text-gray-700" /></div>
+                            <h3 className="font-bold text-gray-900 text-sm">Sócios Cadastrados</h3>
+                        </div>
+                        {isAdmin && (
+                            <button 
+                                onClick={() => setIsAddingSocio(!isAddingSocio)} 
+                                className={`p-1.5 rounded-lg transition-colors ${isAddingSocio ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                            >
+                                {isAddingSocio ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                            </button>
+                        )}
+                    </div>
+
+                    {isAddingSocio && (
+                        <div className="flex gap-2 mb-4 animate-in fade-in slide-in-from-top-2">
+                            <input 
+                                value={newSocio}
+                                onChange={(e) => setNewSocio(e.target.value)}
+                                placeholder="Nome do sócio..."
+                                className="flex-1 text-xs border border-blue-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddSocio()}
+                            />
+                            <button onClick={handleAddSocio} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">OK</button>
+                        </div>
+                    )}
+
+                    <div className="flex-1 overflow-y-auto max-h-48 custom-scrollbar space-y-1">
+                        {socios.map(item => (
+                            <div key={item.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg group">
+                                <span className="text-xs text-gray-700 font-medium">{item.nome}</span>
+                                {isAdmin && (
+                                    <button 
+                                        onClick={() => handleDeleteSocio(item.id, item.nome)}
+                                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all p-1"
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        {socios.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Nenhum registro</p>}
+                    </div>
+                </div>
+             </div>
+
+             {/* IMPORTAR DADOS */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-gray-100 rounded-lg"><FileSpreadsheet className="h-5 w-5 text-gray-700" /></div>
+                    <div>
+                        <h3 className="font-bold text-gray-900 text-base">Importar Dados</h3>
+                        <p className="text-xs text-gray-500">Adicione clientes em massa via Excel</p>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={handleDownloadTemplate}
+                            className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-green-300 bg-green-50 rounded-lg text-green-700 hover:border-green-400 hover:bg-green-100 font-medium"
+                        >
+                            <Download className="h-6 w-6" />
+                            <div className="text-center">
+                                <p className="font-bold text-xs">Baixar Modelo</p>
+                                <p className="text-[10px] text-green-600">Template Excel</p>
+                            </div>
+                        </button>
+
+                        <div className="relative">
+                            <input 
+                                ref={fileInputRef}
+                                type="file" 
+                                accept=".xlsx, .xls"
+                                onChange={handleFileUpload}
+                                disabled={loading || !isAdmin}
+                                className={`absolute inset-0 w-full h-full z-10 ${!isAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            />
+                            <div className={`flex flex-col items-center justify-center gap-2 p-4 h-full rounded-lg ${loading || !isAdmin ? 'bg-gray-300 text-gray-500 opacity-70' : 'bg-gray-900 text-white hover:bg-gray-800'}`}>
+                                {loading ? (
+                                    <>
+                                        <RefreshCw className="h-6 w-6 animate-spin" />
+                                        <p className="font-bold text-xs">Importando...</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload className="h-6 w-6" />
+                                        <div className="text-center">
+                                            <p className="font-bold text-xs">Selecionar Arquivo</p>
+                                            <p className="text-[10px] opacity-70">Excel (.xlsx, .xls)</p>
+                                            {!isAdmin && <p className="text-[9px] mt-1 text-red-300">(Apenas Admin)</p>}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          </div>
+      )}
+
+      {/* --- CONTEÚDO: MÓDULO RH --- */}
+      {activeModule === 'rh' && (
+          <div className="animate-in fade-in">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-green-50 rounded-lg"><Users className="h-5 w-5 text-green-700" /></div>
+                      <div>
+                          <h3 className="font-bold text-gray-900 text-base">Manutenção do RH</h3>
+                          <p className="text-xs text-gray-500">Gestão avançada de dados de pessoal</p>
+                      </div>
+                  </div>
+
+                  {/* ZONA DE PERIGO RH */}
+                  <div className="border border-red-200 rounded-xl overflow-hidden">
+                      <div className="bg-red-50 p-4 border-b border-red-200 flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-red-600" />
+                          <h4 className="font-bold text-red-800 text-sm">Zona de Perigo - Presença</h4>
+                      </div>
+                      <div className="p-6">
+                          <p className="text-sm text-gray-600 mb-4">
+                              Esta ação irá apagar <strong>todos</strong> os registros de entrada e saída do banco de dados (tabela <code>presenca_portaria</code>). 
+                              As regras de sócios e colaboradores cadastrados serão mantidas.
+                          </p>
+                          <button 
+                            onClick={handleResetPresence}
+                            disabled={!isAdmin}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-white transition-colors ${isAdmin ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-300 cursor-not-allowed'}`}
+                          >
+                              <Trash2 className="h-4 w-4" /> Resetar Base de Presença
+                          </button>
+                      </div>
                   </div>
               </div>
-              <button 
-                onClick={() => openUserModal()} 
-                disabled={!isAdmin}
-                className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg font-bold transition-colors ${isAdmin ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gray-50 text-gray-400 cursor-not-allowed opacity-60'}`}
-              >
-                  <UserPlus className="h-4 w-4" /> Novo
-              </button>
           </div>
+      )}
 
-          <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                  <thead>
-                      <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase">
-                          <th className="py-2 px-2 font-semibold">Nome</th>
-                          <th className="py-2 px-2 font-semibold">Email</th>
-                          <th className="py-2 px-2 font-semibold">Status</th>
-                          <th className="py-2 px-2 text-right font-semibold">Ações</th>
-                      </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                      {loadingUsers ? (
-                          <tr><td colSpan={4} className="py-4 text-center text-gray-400 text-xs">Carregando...</td></tr>
-                      ) : users.map(user => (
-                          <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50">
-                              <td className="py-2.5 px-2 font-medium text-gray-900 text-xs">{user.nome}</td>
-                              <td className="py-2.5 px-2 text-gray-600 text-xs">{user.email}</td>
-                              <td className="py-2.5 px-2">
-                                  {user.ativo ? 
-                                    <span className="inline-flex items-center gap-1 text-green-700 text-xs font-medium"><Check className="h-3 w-3" /> Ativo</span> : 
-                                    <span className="inline-flex items-center gap-1 text-red-600 text-xs font-medium"><Ban className="h-3 w-3" /> Bloqueado</span>
-                                  }
-                              </td>
-                              <td className="py-2.5 px-2 text-right">
-                                  <div className={`inline-flex gap-1 ${!isAdmin ? 'opacity-50 pointer-events-none' : ''}`}>
-                                      <button onClick={(e) => { e.stopPropagation(); handleToggleActive(user); }} disabled={!isAdmin} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title={user.ativo ? "Bloquear" : "Ativar"}>
-                                          <Shield className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={(e) => { e.stopPropagation(); openUserModal(user); }} disabled={!isAdmin} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title="Editar">
-                                          <Pencil className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(user); }} disabled={!isAdmin} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded" title="Excluir">
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                  </div>
-                              </td>
-                          </tr>
+      {/* --- CONTEÚDO: MÓDULO SISTEMA --- */}
+      {activeModule === 'sistema' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in">
+              
+              {/* HISTÓRICO DE VERSÕES */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-gray-100 rounded-lg"><History className="h-5 w-5 text-gray-700" /></div>
+                      <h3 className="font-bold text-gray-900 text-base">Histórico de Versões</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                      {CHANGELOG.slice(0, showAllVersions ? CHANGELOG.length : 3).map((log) => (
+                          <div key={log.version} className="border-l-2 border-gray-300 pl-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                  <span className={`px-2 py-0.5 text-xs font-bold rounded ${
+                                      log.type === 'major' ? 'bg-red-100 text-red-700' :
+                                      log.type === 'minor' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-green-100 text-green-700'
+                                  }`}>
+                                      v{log.version}
+                                  </span>
+                                  <span className="text-xs text-gray-500">{log.date}</span>
+                              </div>
+                              <h4 className="font-bold text-gray-900 text-sm mb-2">{log.title}</h4>
+                              <ul className="space-y-1">
+                                  {log.changes.map((change, idx) => (
+                                      <li key={idx} className="text-xs text-gray-600 flex items-start gap-2">
+                                          <span className="text-gray-400 mt-1">•</span>
+                                          <span>{change}</span>
+                                      </li>
+                                  ))}
+                              </ul>
+                          </div>
                       ))}
-                  </tbody>
-              </table>
-          </div>
-        </div>
+                  </div>
 
-        {/* SEGURANÇA MAGISTRADOS */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-gray-100 rounded-lg"><Lock className="h-5 w-5 text-gray-700" /></div>
-              <div>
-                  <h3 className="font-bold text-gray-900 text-base">Segurança: Módulo Magistrados</h3>
-                  <p className="text-xs text-gray-500">Controle de acesso à área restrita</p>
+                  {CHANGELOG.length > 3 && (
+                      <button
+                          onClick={() => setShowAllVersions(!showAllVersions)}
+                          className="w-full mt-4 py-2.5 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50"
+                      >
+                          {showAllVersions ? 'Mostrar Menos' : `Ver Todas (${CHANGELOG.length})`}
+                      </button>
+                  )}
               </div>
-          </div>
 
-          <div className="space-y-4">
-              <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase mb-2">PIN de Acesso (4 dígitos)</label>
-                  <input 
-                      type="text" 
-                      maxLength={4}
-                      value={magistradosConfig.pin}
-                      readOnly={!isAdmin}
-                      onChange={e => setMagistradosConfig({...magistradosConfig, pin: e.target.value.replace(/\D/g,'')})}
-                      className={`w-full border border-gray-300 rounded-lg p-3 font-mono text-center tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-gray-900 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                      placeholder="0000"
-                  />
-              </div>
-              <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Emails Permitidos (separar por vírgula)</label>
-                  <textarea 
-                      rows={4}
-                      value={magistradosConfig.emails}
-                      readOnly={!isAdmin}
-                      onChange={e => setMagistradosConfig({...magistradosConfig, emails: e.target.value})}
-                      className={`w-full border border-gray-300 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                      placeholder="email1@salomao.adv.br, email2@salomao.adv.br"
-                  />
-              </div>
-          </div>
-          <div className="mt-6 flex justify-end">
-              <button 
-                  onClick={handleSaveConfigMagistrados}
-                  disabled={loadingConfig || !isAdmin}
-                  className={`px-4 py-2.5 font-bold rounded-lg flex items-center gap-2 ${isAdmin ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-              >
-                  <Save className="h-4 w-4" /> Salvar
-              </button>
-          </div>
-        </div>
-      </div>
-
-      {/* LINHA 2: CADASTROS GERAIS (SEPARADOS) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* CRUD TIPOS DE BRINDE */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gray-100 rounded-lg"><Tag className="h-5 w-5 text-gray-700" /></div>
-                    <h3 className="font-bold text-gray-900 text-sm">Tipos de Brinde</h3>
-                </div>
-                {isAdmin && (
-                    <button 
-                        onClick={() => setIsAddingBrinde(!isAddingBrinde)} 
-                        className={`p-1.5 rounded-lg transition-colors ${isAddingBrinde ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
-                    >
-                        {isAddingBrinde ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                    </button>
-                )}
-            </div>
-
-            {isAddingBrinde && (
-                <div className="flex gap-2 mb-4 animate-in fade-in slide-in-from-top-2">
-                    <input 
-                        value={newBrinde}
-                        onChange={(e) => setNewBrinde(e.target.value)}
-                        placeholder="Novo tipo..."
-                        className="flex-1 text-xs border border-blue-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20"
-                        autoFocus
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddBrinde()}
-                    />
-                    <button onClick={handleAddBrinde} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">OK</button>
-                </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto max-h-48 custom-scrollbar space-y-1">
-                {brindes.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg group">
-                        <span className="text-xs text-gray-700 font-medium">{item.nome}</span>
-                        {isAdmin && (
-                            <button 
-                                onClick={() => handleDeleteBrinde(item.id, item.nome)}
-                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all p-1"
-                            >
-                                <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                        )}
-                    </div>
-                ))}
-                {brindes.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Nenhum registro</p>}
-            </div>
-        </div>
-
-        {/* CRUD SÓCIOS */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gray-100 rounded-lg"><Briefcase className="h-5 w-5 text-gray-700" /></div>
-                    <h3 className="font-bold text-gray-900 text-sm">Sócios Cadastrados</h3>
-                </div>
-                {isAdmin && (
-                    <button 
-                        onClick={() => setIsAddingSocio(!isAddingSocio)} 
-                        className={`p-1.5 rounded-lg transition-colors ${isAddingSocio ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
-                    >
-                        {isAddingSocio ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                    </button>
-                )}
-            </div>
-
-            {isAddingSocio && (
-                <div className="flex gap-2 mb-4 animate-in fade-in slide-in-from-top-2">
-                    <input 
-                        value={newSocio}
-                        onChange={(e) => setNewSocio(e.target.value)}
-                        placeholder="Nome do sócio..."
-                        className="flex-1 text-xs border border-blue-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20"
-                        autoFocus
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddSocio()}
-                    />
-                    <button onClick={handleAddSocio} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">OK</button>
-                </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto max-h-48 custom-scrollbar space-y-1">
-                {socios.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg group">
-                        <span className="text-xs text-gray-700 font-medium">{item.nome}</span>
-                        {isAdmin && (
-                            <button 
-                                onClick={() => handleDeleteSocio(item.id, item.nome)}
-                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all p-1"
-                            >
-                                <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                        )}
-                    </div>
-                ))}
-                {socios.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Nenhum registro</p>}
-            </div>
-        </div>
-
-      </div>
-
-      {/* LINHA 3: IMPORTAR DADOS + ZONA PERIGO */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* IMPORTAR DADOS */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gray-100 rounded-lg"><FileSpreadsheet className="h-5 w-5 text-gray-700" /></div>
-                <div>
-                    <h3 className="font-bold text-gray-900 text-base">Importar Dados</h3>
-                    <p className="text-xs text-gray-500">Adicione clientes em massa via Excel</p>
-                </div>
-            </div>
-
-            <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                    <button 
-                        onClick={handleDownloadTemplate}
-                        className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-green-300 bg-green-50 rounded-lg text-green-700 hover:border-green-400 hover:bg-green-100 font-medium"
-                    >
-                        <Download className="h-6 w-6" />
-                        <div className="text-center">
-                            <p className="font-bold text-xs">Baixar Modelo</p>
-                            <p className="text-[10px] text-green-600">Template Excel</p>
-                        </div>
-                    </button>
-
-                    <div className="relative">
-                        <input 
-                            ref={fileInputRef}
-                            type="file" 
-                            accept=".xlsx, .xls"
-                            onChange={handleFileUpload}
-                            disabled={loading || !isAdmin}
-                            className={`absolute inset-0 w-full h-full z-10 ${!isAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                        />
-                        <div className={`flex flex-col items-center justify-center gap-2 p-4 h-full rounded-lg ${loading || !isAdmin ? 'bg-gray-300 text-gray-500 opacity-70' : 'bg-gray-900 text-white hover:bg-gray-800'}`}>
-                            {loading ? (
-                                <>
-                                    <RefreshCw className="h-6 w-6 animate-spin" />
-                                    <p className="font-bold text-xs">Importando...</p>
-                                </>
-                            ) : (
-                                <>
-                                    <Upload className="h-6 w-6" />
-                                    <div className="text-center">
-                                        <p className="font-bold text-xs">Selecionar Arquivo</p>
-                                        <p className="text-[10px] opacity-70">Excel (.xlsx, .xls)</p>
-                                        {!isAdmin && <p className="text-[9px] mt-1 text-red-300">(Apenas Admin)</p>}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {status.type && (
-                    <div className={`p-4 rounded-lg flex items-start gap-3 ${
-                        status.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-                    }`}>
-                        <div className="flex-shrink-0">
-                            {status.type === 'success' ? (
-                                <CheckCircle className="h-5 w-5 text-green-600" />
-                            ) : (
-                                <AlertCircle className="h-5 w-5 text-red-600" />
-                            )}
-                        </div>
-                        <p className={`text-sm font-medium ${status.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
-                            {status.message}
-                        </p>
-                    </div>
-                )}
-            </div>
-        </div>
-
-        {/* ZONA DE PERIGO */}
-        <div className="bg-white rounded-xl shadow-sm border-2 border-red-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-red-50 rounded-lg"><AlertTriangle className="h-5 w-5 text-red-600" /></div>
-                <div>
-                    <h3 className="font-bold text-gray-900 text-base">Zona de Perigo</h3>
-                    <p className="text-xs text-gray-500">Ações irreversíveis</p>
-                </div>
-            </div>
-
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <p className="text-xs font-bold text-red-900 mb-2">⚠️ Atenção</p>
-                <ul className="text-xs text-red-700 space-y-1">
-                    <li>• Apagará TODOS os dados do sistema</li>
-                    <li>• Clientes, magistrados e tarefas serão removidos</li>
-                    <li>• Não é possível recuperar após confirmação</li>
-                </ul>
-            </div>
-
-            <button 
-              onClick={handleSystemReset}
-              disabled={!isAdmin}
-              className={`w-full flex items-center justify-center gap-3 py-4 font-bold rounded-lg ${isAdmin ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-            >
-              <Trash2 className="h-5 w-5" />
-              <div className="text-left">
-                  <p>Resetar Sistema</p>
-                  <p className={`text-xs font-normal ${isAdmin ? 'text-red-100' : 'text-gray-400'}`}>
-                    {isAdmin ? 'Apagar todos os dados' : 'Apenas Administradores'}
-                  </p>
-              </div>
-            </button>
-        </div>
-      </div>
-
-      {/* LINHA 4: CRÉDITOS + CHANGELOG */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* CRÉDITOS */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-                <Code className="h-5 w-5 text-gray-700" />
-                <h3 className="font-bold text-gray-900 text-base">Créditos e Informações</h3>
-            </div>
-
-            <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-gray-900 text-white flex items-center justify-center font-black">M</div>
+              <div className="space-y-6">
+                {/* ZONA DE PERIGO GLOBAL */}
+                <div className="bg-white rounded-xl shadow-sm border-2 border-red-200 p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-red-50 rounded-lg"><AlertTriangle className="h-5 w-5 text-red-600" /></div>
                         <div>
-                            <p className="font-bold text-gray-900 text-sm">Marcio Gama</p>
-                            <p className="text-xs text-gray-600">Desenvolvedor Full Stack</p>
+                            <h3 className="font-bold text-gray-900 text-base">Reset Geral do Sistema</h3>
+                            <p className="text-xs text-gray-500">Ações irreversíveis</p>
                         </div>
                     </div>
-                </div>
 
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Building className="h-4 w-4 text-gray-600" />
-                        <p className="font-bold text-gray-900 text-xs">Empresa</p>
-                    </div>
-                    <p className="font-bold text-gray-900">Flow Metrics</p>
-                    <p className="text-xs text-gray-600 mt-1">Análise de Dados e Desenvolvimento</p>
-                </div>
-
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Code className="h-4 w-4 text-gray-600" />
-                        <p className="font-bold text-gray-900 text-xs">Stack Tecnológica</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1.5">Frontend</p>
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-1.5">
-                                    <div className="h-1 w-1 rounded-full bg-blue-500"></div>
-                                    <span className="text-xs text-gray-700">React 18</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="h-1 w-1 rounded-full bg-blue-500"></div>
-                                    <span className="text-xs text-gray-700">TypeScript</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="h-1 w-1 rounded-full bg-blue-500"></div>
-                                    <span className="text-xs text-gray-700">Tailwind CSS</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1.5">Backend</p>
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-1.5">
-                                    <div className="h-1 w-1 rounded-full bg-green-500"></div>
-                                    <span className="text-xs text-gray-700">Supabase</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="h-1 w-1 rounded-full bg-green-500"></div>
-                                    <span className="text-xs text-gray-700">PostgreSQL</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="p-4 bg-gray-900 rounded-lg text-white">
-                    <div className="flex items-center gap-2">
-                        <Copyright className="h-4 w-4" />
-                        <div>
-                            <p className="text-sm font-bold">© 2025-2026 Flow Metrics</p>
-                            <p className="text-xs text-gray-400 mt-1">Sistema para Salomão Advogados</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-gray-600" />
-                        <span className="text-xs font-medium text-gray-600">Versão</span>
-                    </div>
-                    <span className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-bold">v1.5.0</span>
-                </div>
-            </div>
-        </div>
-
-        {/* HISTÓRICO DE VERSÕES */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-                <History className="h-5 w-5 text-gray-700" />
-                <h3 className="font-bold text-gray-900 text-base">Histórico de Versões</h3>
-            </div>
-
-            <div className="space-y-4">
-                {CHANGELOG.slice(0, showAllVersions ? CHANGELOG.length : 3).map((log) => (
-                    <div key={log.version} className="border-l-2 border-gray-300 pl-4">
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className={`px-2 py-0.5 text-xs font-bold rounded ${
-                                log.type === 'major' ? 'bg-red-100 text-red-700' :
-                                log.type === 'minor' ? 'bg-blue-100 text-blue-700' :
-                                'bg-green-100 text-green-700'
-                            }`}>
-                                v{log.version}
-                            </span>
-                            <span className="text-xs text-gray-500">{log.date}</span>
-                        </div>
-                        <h4 className="font-bold text-gray-900 text-sm mb-2">{log.title}</h4>
-                        <ul className="space-y-1">
-                            {log.changes.map((change, idx) => (
-                                <li key={idx} className="text-xs text-gray-600 flex items-start gap-2">
-                                    <span className="text-gray-400 mt-1">•</span>
-                                    <span>{change}</span>
-                                </li>
-                            ))}
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                        <p className="text-xs font-bold text-red-900 mb-2">⚠️ Atenção</p>
+                        <ul className="text-xs text-red-700 space-y-1">
+                            <li>• Apagará TODOS os dados do sistema</li>
+                            <li>• Clientes, magistrados e tarefas serão removidos</li>
+                            <li>• Não é possível recuperar após confirmação</li>
                         </ul>
                     </div>
-                ))}
-            </div>
 
-            {CHANGELOG.length > 3 && (
-                <button
-                    onClick={() => setShowAllVersions(!showAllVersions)}
-                    className="w-full mt-4 py-2.5 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50"
-                >
-                    {showAllVersions ? 'Mostrar Menos' : `Ver Todas (${CHANGELOG.length})`}
-                </button>
-            )}
-        </div>
-      </div>
+                    <button 
+                        onClick={handleSystemReset}
+                        disabled={!isAdmin}
+                        className={`w-full flex items-center justify-center gap-3 py-4 font-bold rounded-lg ${isAdmin ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                    >
+                        <Trash2 className="h-5 w-5" />
+                        <div className="text-left">
+                            <p>Resetar Sistema Completo</p>
+                            <p className="text-xs font-normal text-red-100">
+                                {isAdmin ? 'Apagar todos os dados' : 'Apenas Administradores'}
+                            </p>
+                        </div>
+                    </button>
+                </div>
+
+                {/* CRÉDITOS */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <Code className="h-5 w-5 text-gray-700" />
+                        <h3 className="font-bold text-gray-900 text-base">Créditos</h3>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Building className="h-4 w-4 text-gray-600" />
+                            <p className="font-bold text-gray-900 text-xs">Empresa</p>
+                        </div>
+                        <p className="font-bold text-gray-900">Flow Metrics</p>
+                        <p className="text-xs text-gray-600 mt-1">Análise de Dados e Desenvolvimento</p>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-gray-600" />
+                            <span className="text-xs font-medium text-gray-600">Versão</span>
+                        </div>
+                        <span className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-bold">v1.5.0</span>
+                    </div>
+                </div>
+              </div>
+          </div>
+      )}
+
     </div>
   )
 }
