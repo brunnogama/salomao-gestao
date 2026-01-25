@@ -1,3 +1,15 @@
+CONTEXTO: Estou enviando o código oficial e atualizado do arquivo: Presencial.tsx
+
+Atualize esse e me peça o restante que eu vou enviando, vamos atualizar um arquivo por vez.
+Veja se precisamos criar tabelas no Supabase
+
+SUA TAREFA: 
+1. Agora só esta importando os 11 primeiros dias.
+Reveja toda a logica, tente entender o motivo do problema e resolva.
+Quero todos os dias do mes importados.
+
+
+CÓDIGO FONTE:
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { 
   Upload, FileSpreadsheet, RefreshCw, Trash2, 
