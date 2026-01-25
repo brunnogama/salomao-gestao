@@ -99,21 +99,40 @@ export function Presencial() {
 
     setLoading(true)
     
-    // Define intervalo cobrindo todo o mês em UTC
     const startObj = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0))
     const endObj = new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999))
     
     const startDate = startObj.toISOString()
     const endDate = endObj.toISOString()
 
-    // Busca Presença do Mês Selecionado (Limite 100k)
-    const { data: presenceData } = await supabase
+    console.log('🔍 Buscando dados:', {
+      mes: selectedMonth + 1,
+      ano: selectedYear,
+      inicio: startDate,
+      fim: endDate
+    });
+
+    // Busca Presença do Mês Selecionado
+    const { data: presenceData, error } = await supabase
       .from('presenca_portaria')
       .select('*')
       .gte('data_hora', startDate)
       .lte('data_hora', endDate)
       .order('data_hora', { ascending: true }) 
-      .limit(100000) 
+      .limit(100000)
+
+    if (error) {
+      console.error('Erro ao buscar presença:', error);
+    }
+
+    console.log('📊 Registros encontrados:', presenceData?.length || 0);
+    if (presenceData && presenceData.length > 0) {
+      console.log('Primeiros 3 registros do banco:', presenceData.slice(0, 3).map(r => ({
+        nome: r.nome_colaborador,
+        data: r.data_hora,
+        parseada: new Date(r.data_hora).toISOString()
+      })));
+    }
 
     // Busca Regras de Sócios
     const { data: rulesData } = await supabase
@@ -174,7 +193,6 @@ export function Presencial() {
   // --- FILTRAGEM CENTRALIZADA ---
   const filteredData = useMemo(() => {
       const filteredRecords = records.filter(record => {
-          // Importante: Usar UTC para extrair mês/ano do registro vindo do banco
           const dateObj = new Date(record.data_hora)
           const recordMonth = dateObj.getUTCMonth()
           const recordYear = dateObj.getUTCFullYear()
@@ -219,27 +237,39 @@ export function Presencial() {
 
   // --- 2. LÓGICA DO RELATÓRIO ---
   const reportData = useMemo(() => {
-    const grouped: { [key: string]: { originalName: string, uniqueDays: Set<string>, weekDays: { [key: number]: number } } } = {}
+    const grouped: { [key: string]: { originalName: string, uniqueDays: Set<string>, weekDays: { [key: number]: number }, datesSet: Set<string> } } = {}
 
     filteredData.filteredRecords.forEach(record => {
       const dateObj = new Date(record.data_hora)
       const normalizedName = normalizeKey(record.nome_colaborador)
       const displayName = toTitleCase(record.nome_colaborador)
       
-      // Usa YYYY-MM-DD em UTC para chave única
-      const dayKey = dateObj.toISOString().split('T')[0] 
+      // Usa UTC para garantir consistência
+      const year = dateObj.getUTCFullYear()
+      const month = dateObj.getUTCMonth() + 1 // 1-12
+      const day = dateObj.getUTCDate()
+      
+      // Chave única: YYYY-MM-DD
+      const dayKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      
+      // Dia do mês para exibição (1-31)
+      const dayNumber = String(day).padStart(2, '0')
+      
       const weekDay = dateObj.getUTCDay()
 
       if (!grouped[normalizedName]) {
           grouped[normalizedName] = { 
               originalName: displayName, 
               uniqueDays: new Set(), 
-              weekDays: {} 
+              weekDays: {},
+              datesSet: new Set()
           }
       }
       
+      // Adiciona o dia apenas se ainda não existe
       if (!grouped[normalizedName].uniqueDays.has(dayKey)) {
         grouped[normalizedName].uniqueDays.add(dayKey)
+        grouped[normalizedName].datesSet.add(dayNumber)
         grouped[normalizedName].weekDays[weekDay] = (grouped[normalizedName].weekDays[weekDay] || 0) + 1
       }
     })
@@ -253,10 +283,11 @@ export function Presencial() {
       const socioRaw = socioMap.get(key) || '-'
       const socioFormatted = toTitleCase(socioRaw)
 
-      // Extrai os dias e ordena
-      const sortedDates = Array.from(item.uniqueDays)
-        .map(d => d.split('-')[2]) // Extrai DD de YYYY-MM-DD
-        .sort((a, b) => parseInt(a) - parseInt(b))
+      // Converte Set para Array e ordena numericamente
+      const sortedDates = Array.from(item.datesSet)
+        .map(d => parseInt(d))
+        .sort((a, b) => a - b)
+        .map(d => String(d).padStart(2, '0'))
 
       return { 
           nome: item.originalName, 
@@ -281,7 +312,7 @@ export function Presencial() {
     return null
   }
 
-  // --- UPLOADS (FUNÇÃO PRINCIPAL CORRIGIDA E ADAPTADA AO LOG) ---
+  // --- UPLOAD DE PRESENÇA (ATUALIZADO) ---
   const handlePresenceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; 
     if (!file) return;
@@ -296,140 +327,238 @@ export function Presencial() {
         const wb = XLSX.read(evt.target?.result, { type: 'binary' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         
-        // Converte para array de arrays ignorando cabeçalhos automáticos
-        const allData = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false }) as any[][];
+        // ===== PASSO 1: CONVERTER SHEET PARA ARRAY, PULANDO O CABEÇALHO =====
+        const allData = XLSX.utils.sheet_to_json(ws, { 
+          header: 1,  // Retorna array de arrays (não objetos)
+          raw: false  // Mantém strings quando possível
+        }) as any[][];
         
-        // Pula as 7 primeiras linhas (metadados do relatório)
-        const dataRows = allData.slice(7);
-        
-        console.log(`Total de linhas brutas: ${dataRows.length}`);
-        
-        const rawRecords = dataRows.map((row: any[]) => {
-          if (!row || row.length < 3) return null;
-          
-          let nome = row[0]; // Coluna A (Nome)
-          const tempoRaw = row[2]; // Coluna C (Tempo)
-          
-          if (!nome || typeof nome !== 'string' || nome.trim() === '') return null;
-          nome = nome.trim();
-
-          // Ignora linhas de cabeçalho que possam ter sobrado
-          if (typeof tempoRaw === 'string' && (tempoRaw.toLowerCase() === 'tempo' || tempoRaw.toLowerCase() === 'data')) return null;
-          
-          let dataFinal: Date | null = null;
-          
-          // Lógica de Parsing Robusta
-          if (typeof tempoRaw === 'string') {
-            const tempoStr = tempoRaw.trim();
-            // Pega apenas a data antes do espaço (ignora hora se existir)
-            const datePart = tempoStr.split(' ')[0]; 
-
-            // Tenta YYYY-MM-DD
-            if (datePart.includes('-')) {
-                const parts = datePart.split('-');
-                if (parts.length === 3) {
-                    const y = parseInt(parts[0]);
-                    const m = parseInt(parts[1]) - 1;
-                    const d = parseInt(parts[2]);
-                    if (y > 2000) dataFinal = new Date(Date.UTC(y, m, d, 12, 0, 0));
-                }
+        // Encontra a primeira linha de dados (pula cabeçalhos até achar nome válido)
+        let startIndex = 0;
+        for (let i = 0; i < allData.length; i++) {
+          const row = allData[i];
+          if (row && row[0] && typeof row[0] === 'string') {
+            const firstCol = row[0].trim().toLowerCase();
+            // Pula linhas que contenham palavras de cabeçalho
+            if (firstCol !== 'nome' && firstCol !== 'colaborador' && firstCol !== '' && !firstCol.includes('departamento')) {
+              startIndex = i;
+              break;
             }
-            // Tenta DD/MM/YYYY
-            else if (datePart.includes('/')) {
-                const parts = datePart.split('/');
-                if (parts.length === 3) {
-                    const d = parseInt(parts[0]);
-                    const m = parseInt(parts[1]) - 1;
-                    const y = parseInt(parts[2]);
-                    if (y > 2000) dataFinal = new Date(Date.UTC(y, m, d, 12, 0, 0));
-                }
-            }
-          } 
-          else if (typeof tempoRaw === 'number') {
-             // Excel serial date
-             const dateObj = new Date((tempoRaw - 25569) * 86400 * 1000);
-             dataFinal = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 12, 0, 0));
           }
-          
-          if (!dataFinal || isNaN(dataFinal.getTime())) return null;
-          
-          return { 
-            nome_colaborador: nome, 
-            data_hora: dataFinal, 
-            arquivo_origem: file.name 
-          };
-        }).filter((r:any) => r !== null);
-
-        // Deduplicação Inteligente (Baseada no Banco + Arquivo Atual)
+        }
+        
+        const dataRows = allData.slice(startIndex);
+        console.log(`Linhas puladas: ${startIndex}, Total de dados: ${dataRows.length}`);
+        
+        console.log(`Total de linhas após pular cabeçalho: ${dataRows.length}`);
+        console.log('Primeiras 3 linhas:', dataRows.slice(0, 3));
+        
+        // ===== PASSO 2: PROCESSAR CADA LINHA =====
+        const rawRecords = dataRows
+          .map((row: any[], rowIndex: number) => {
+            // Assume estrutura: [Nome, Departamento, Tempo]
+            // Coluna 0: Nome
+            // Coluna 1: Departamento (ignorar)
+            // Coluna 2: Tempo (data e hora)
+            
+            if (!row || row.length < 3) return null;
+            
+            let nome = row[0];
+            const tempoRaw = row[2];
+            
+            // Debug das primeiras 5 linhas
+            if (rowIndex < 5) {
+              console.log(`Linha ${rowIndex}:`, { nome, tempoRaw, tipo: typeof tempoRaw });
+            }
+            
+            // Valida nome
+            if (!nome || typeof nome !== 'string' || nome.trim() === '') return null;
+            nome = nome.trim();
+            
+            // ===== PASSO 3: PROCESSAR CAMPO TEMPO (data + hora) =====
+            let dataFinal: Date | null = null;
+            
+            if (typeof tempoRaw === 'string') {
+              const tempoStr = tempoRaw.trim();
+              
+              // Formato esperado: "YYYY-MM-DD HH:MM:SS" ou "DD/MM/YYYY HH:MM:SS"
+              // Vamos extrair apenas a parte da data (antes do espaço)
+              const parts = tempoStr.split(' ');
+              const datePart = parts[0];
+              
+              // Tenta formato YYYY-MM-DD
+              if (datePart.includes('-')) {
+                const dateParts = datePart.split('-');
+                if (dateParts.length === 3) {
+                  const year = parseInt(dateParts[0]);
+                  const month = parseInt(dateParts[1]);
+                  const day = parseInt(dateParts[2]);
+                  
+                  if (year && month && day && !isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                    dataFinal = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+                  }
+                }
+              }
+              // Tenta formato DD/MM/YYYY
+              else if (datePart.includes('/')) {
+                const dateParts = datePart.split('/');
+                if (dateParts.length === 3) {
+                  const day = parseInt(dateParts[0]);
+                  const month = parseInt(dateParts[1]);
+                  const year = parseInt(dateParts[2]);
+                  
+                  if (year && month && day && !isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                    dataFinal = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+                  }
+                }
+              }
+            }
+            // Se for número (serial do Excel)
+            else if (typeof tempoRaw === 'number') {
+              const dateObj = new Date((tempoRaw - 25569) * 86400 * 1000);
+              dataFinal = new Date(Date.UTC(
+                dateObj.getUTCFullYear(), 
+                dateObj.getUTCMonth(), 
+                dateObj.getUTCDate(), 
+                12, 0, 0
+              ));
+            }
+            
+            // Valida data
+            if (!dataFinal || isNaN(dataFinal.getTime())) {
+              console.warn(`Data inválida para ${nome}: ${tempoRaw}`);
+              return null;
+            }
+            
+            // Debug das primeiras 5 datas processadas
+            if (rowIndex < 5) {
+              console.log(`Data processada [${rowIndex}]:`, dataFinal.toISOString(), 'UTC:', {
+                dia: dataFinal.getUTCDate(),
+                mes: dataFinal.getUTCMonth() + 1,
+                ano: dataFinal.getUTCFullYear()
+              });
+            }
+            
+            return { 
+              nome_colaborador: nome, 
+              data_hora: dataFinal, 
+              arquivo_origem: file.name 
+            };
+          })
+          .filter((r: any) => r !== null);
+        
+        console.log(`Registros válidos extraídos: ${rawRecords.length}`);
+        console.log('Primeiros 5 registros:', rawRecords.slice(0, 5).map(r => ({
+          nome: r.nome_colaborador,
+          data: r.data_hora.toISOString()
+        })));
+        
+        // ===== PASSO 4: DEDUPLICAÇÃO =====
+        // 4.1 - Buscar registros existentes no banco para este período
         const uniqueSet = new Set<string>();
         
-        // Gera assinaturas dos registros JÁ CARREGADOS NA TELA
-        const existingSignatures = new Set(records.map(r => {
-             const d = new Date(r.data_hora);
-             const dateStr = d.toISOString().split('T')[0]; 
-             return `${normalizeKey(r.nome_colaborador)}_${dateStr}`
-        }));
-
-        const recordsToInsert = rawRecords.filter((r: any) => {
-            const d = r.data_hora as Date;
-            const dateStr = d.toISOString().split('T')[0];
+        // Pega todas as datas únicas dos novos registros
+        const allDates = rawRecords.map((r: any) => r.data_hora);
+        const minDate = new Date(Math.min(...allDates.map((d: Date) => d.getTime())));
+        const maxDate = new Date(Math.max(...allDates.map((d: Date) => d.getTime())));
+        
+        // Busca registros existentes neste intervalo
+        const { data: existingRecords } = await supabase
+          .from('presenca_portaria')
+          .select('nome_colaborador, data_hora')
+          .gte('data_hora', minDate.toISOString())
+          .lte('data_hora', maxDate.toISOString());
+        
+        // 4.2 - Criar set com assinaturas existentes (nome_data)
+        const existingSignatures = new Set<string>();
+        if (existingRecords) {
+          existingRecords.forEach(r => {
+            const d = new Date(r.data_hora);
+            const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
             const key = `${normalizeKey(r.nome_colaborador)}_${dateStr}`;
-            
-            // Verifica duplicidade no próprio arquivo
-            if (uniqueSet.has(key)) return false;
-            
-            // Verifica duplicidade no banco (já carregado)
-            if (existingSignatures.has(key)) return false;
-
-            uniqueSet.add(key);
-            return true;
+            existingSignatures.add(key);
+          });
+        }
+        
+        console.log(`Registros já existentes no período: ${existingSignatures.size}`);
+        
+        // 4.3 - Filtrar registros novos (remove duplicatas internas E do banco)
+        const recordsToInsert = rawRecords.filter((r: any) => {
+          const d = r.data_hora;
+          const dateStr = d.toISOString().split('T')[0];
+          const key = `${normalizeKey(r.nome_colaborador)}_${dateStr}`;
+          
+          // Já existe no banco?
+          if (existingSignatures.has(key)) return false;
+          
+          // Já foi processado neste upload?
+          if (uniqueSet.has(key)) return false;
+          
+          // Marca como processado
+          uniqueSet.add(key);
+          return true;
         });
         
-        console.log(`Registros únicos finais para inserir: ${recordsToInsert.length}`);
-
+        const duplicatesSkipped = rawRecords.length - recordsToInsert.length;
+        console.log(`Registros únicos para inserir: ${recordsToInsert.length}`);
+        console.log(`Duplicatas ignoradas: ${duplicatesSkipped}`);
+        
+        // ===== PASSO 5: INSERÇÃO EM LOTE =====
         if (recordsToInsert.length === 0) {
-            alert('Todos os registros deste arquivo já foram importados ou são duplicados.');
-            setUploading(false);
-            if (presenceInputRef.current) presenceInputRef.current.value = '';
-            return;
+          alert('Nenhum registro novo para importar. Todos já existem no sistema.');
+          setUploading(false);
+          if (presenceInputRef.current) presenceInputRef.current.value = '';
+          return;
         }
-
-        // Inserção em Lote
+        
         const BATCH_SIZE = 1000;
-        const total = Math.ceil(recordsToInsert.length / BATCH_SIZE);
+        const totalBatches = Math.ceil(recordsToInsert.length / BATCH_SIZE);
         
         for (let i = 0; i < recordsToInsert.length; i += BATCH_SIZE) {
-            const batch = recordsToInsert.slice(i, i + BATCH_SIZE).map((r: any) => ({
-                nome_colaborador: r.nome_colaborador,
-                data_hora: r.data_hora.toISOString(),
-                arquivo_origem: r.arquivo_origem
-            }));
-            
-            await supabase.from('presenca_portaria').insert(batch);
-            setProgress(Math.round(((i / BATCH_SIZE) + 1) / total * 100));
+          const batch = recordsToInsert.slice(i, i + BATCH_SIZE).map((r: any) => ({
+            nome_colaborador: r.nome_colaborador,
+            data_hora: r.data_hora.toISOString(), // Converte para ISO string
+            arquivo_origem: r.arquivo_origem
+          }));
+          
+          const { error } = await supabase
+            .from('presenca_portaria')
+            .insert(batch);
+          
+          if (error) {
+            console.error('Erro ao inserir batch:', error);
+            throw error;
+          }
+          
+          setProgress(Math.round(((i / BATCH_SIZE) + 1) / totalBatches * 100));
         }
         
-        alert(`${recordsToInsert.length} registros importados com sucesso!`);
+        // ===== PASSO 6: FEEDBACK E ATUALIZAÇÃO =====
+        alert(
+          `✅ Importação concluída!\n\n` +
+          `• ${recordsToInsert.length} registros NOVOS importados\n` +
+          `• ${duplicatesSkipped} duplicatas ignoradas\n` +
+          `• ${rawRecords.length} linhas processadas`
+        );
         
-        // Atualiza a tela para o mês dos dados importados
+        // Atualiza para o mês do primeiro registro importado
         if (recordsToInsert.length > 0) {
-             const firstDate = recordsToInsert[0].data_hora;
-             setSelectedMonth(firstDate.getUTCMonth());
-             setSelectedYear(firstDate.getUTCFullYear());
-             // Força recarregamento se for o mesmo mês
-             if (firstDate.getUTCMonth() === selectedMonth && firstDate.getUTCFullYear() === selectedYear) {
-                 fetchRecords();
-             }
+          const firstDate = new Date(recordsToInsert[0].data_hora);
+          setSelectedMonth(firstDate.getUTCMonth());
+          setSelectedYear(firstDate.getUTCFullYear());
+        } else {
+          fetchRecords();
         }
-
-      } catch (err) { 
-          console.error(err);
-          alert("Erro ao processar arquivo. Verifique o console."); 
-      } finally { 
-          setUploading(false); 
-          if (presenceInputRef.current) presenceInputRef.current.value = ''; 
+        
+      } catch (err) {
+        console.error('Erro ao processar arquivo:', err);
+        alert('❌ Erro ao importar arquivo. Verifique o formato da planilha.');
+      } finally {
+        setUploading(false);
+        if (presenceInputRef.current) presenceInputRef.current.value = '';
       }
     };
+    
     reader.readAsBinaryString(file);
   };
 
