@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { 
-  Upload, FileSpreadsheet, RefreshCw, Trash2, 
+  Upload, FileSpreadsheet, RefreshCw, Download,
   BarChart3, Users, Briefcase,
   Pencil, Plus, X, Search, Filter as FilterIcon
 } from 'lucide-react'
@@ -638,10 +638,41 @@ export function Presencial() {
       } catch (err: any) { alert("Erro: " + err.message) } finally { setLoading(false) }
   }
   const handleDeleteRule = async (id: string) => { if (!confirm("Excluir?")) return; setLoading(true); await supabase.from('socios_regras').delete().eq('id', id); fetchRecords() }
-  const handleClearData = async () => {
-      if (viewMode === 'socios') { if (!confirm("Apagar REGRAS?")) return; await supabase.from('socios_regras').delete().neq('id', '00000000-0000-0000-0000-000000000000') } 
-      else { if (!confirm("Apagar PRESENÇA?")) return; await supabase.from('presenca_portaria').delete().neq('id', '00000000-0000-0000-0000-000000000000') }
-      fetchRecords()
+
+  // --- EXPORTAR XLSX ---
+  const handleExportXLSX = () => {
+    // Prepara dados para exportação baseado no filtro atual
+    const dataToExport = reportData.map(item => ({
+      'Colaborador': item.nome,
+      'Sócio Responsável': item.socio !== '-' ? item.socio : 'Sem Sócio',
+      'Dias Presentes': item.diasPresentes,
+      'Segunda': item.diasSemana['Seg'] || 0,
+      'Terça': item.diasSemana['Ter'] || 0,
+      'Quarta': item.diasSemana['Qua'] || 0,
+      'Quinta': item.diasSemana['Qui'] || 0,
+      'Sexta': item.diasSemana['Sex'] || 0,
+      'Sábado': item.diasSemana['Sáb'] || 0,
+      'Domingo': item.diasSemana['Dom'] || 0
+    }))
+
+    // Cria worksheet e workbook
+    const ws = XLSX.utils.json_to_sheet(dataToExport)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Presença')
+
+    // Define nome do arquivo
+    let fileName = 'Presencial'
+    if (filterColaborador) {
+      fileName = `Presencial_${filterColaborador.replace(/\s+/g, '_')}`
+    } else if (filterSocio) {
+      fileName = `Presencial_Socio_${filterSocio.replace(/\s+/g, '_')}`
+    } else {
+      const monthName = months[selectedMonth]
+      fileName = `Presencial_${monthName}_${selectedYear}`
+    }
+
+    // Download
+    XLSX.writeFile(wb, `${fileName}.xlsx`)
   }
 
   const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -684,23 +715,39 @@ export function Presencial() {
       <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <h2 className="text-xl font-bold text-[#112240]">Controle de Presença</h2>
-                <p className="text-sm text-gray-500">Gestão de acessos e regras de sócios.</p>
+                <h2 className="text-2xl font-bold text-[#112240]">Controle de Presença</h2>
+                <p className="text-sm text-gray-500">Gestão de acessos e regras de sócios</p>
             </div>
             
             <div className="flex items-center gap-2">
                 <input type="file" accept=".xlsx" ref={presenceInputRef} onChange={handlePresenceUpload} className="hidden" />
                 <input type="file" accept=".xlsx" ref={socioInputRef} onChange={handleSocioUpload} className="hidden" />
-                <button onClick={() => fetchRecords()} className="p-2 text-gray-400 hover:text-blue-600" title="Atualizar"><RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} /></button>
-                <button onClick={handleClearData} className="p-2 text-gray-400 hover:text-red-600" title="Limpar"><Trash2 className="h-5 w-5" /></button>
+                
+                <button 
+                  onClick={() => fetchRecords()} 
+                  className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                  title="Atualizar"
+                >
+                  <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+
+                {viewMode === 'report' && reportData.length > 0 && (
+                  <button 
+                    onClick={handleExportXLSX} 
+                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  >
+                    <Download className="h-4 w-4" /> 
+                    Exportar
+                  </button>
+                )}
                 
                 {viewMode === 'socios' ? (
                     <div className="flex gap-2">
-                         <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Plus className="h-4 w-4" /> Novo</button>
-                         <button onClick={() => socioInputRef.current?.click()} disabled={uploading} className="bg-[#112240] hover:bg-[#1e3a8a] text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">{uploading ? '...' : <><Users className="h-4 w-4" /> Importar</>}</button>
+                         <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors"><Plus className="h-4 w-4" /> Novo</button>
+                         <button onClick={() => socioInputRef.current?.click()} disabled={uploading} className="bg-[#112240] hover:bg-[#1e3a8a] text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">{uploading ? '...' : <><Users className="h-4 w-4" /> Importar</>}</button>
                     </div>
                 ) : (
-                    <button onClick={() => presenceInputRef.current?.click()} disabled={uploading} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">{uploading ? '...' : <><FileSpreadsheet className="h-4 w-4" /> Importar</>}</button>
+                    <button onClick={() => presenceInputRef.current?.click()} disabled={uploading} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">{uploading ? '...' : <><FileSpreadsheet className="h-4 w-4" /> Importar</>}</button>
                 )}
             </div>
         </div>
@@ -781,40 +828,90 @@ export function Presencial() {
         {viewMode === 'report' && (
             <div className="flex-1 overflow-auto">
                 {reportData.length === 0 ? (
-                    <div className="h-64 flex flex-col items-center justify-center text-gray-400"><p>Sem dados correspondentes aos filtros.</p></div>
+                    <div className="h-64 flex flex-col items-center justify-center text-gray-400">
+                        <BarChart3 className="h-16 w-16 mb-4 opacity-20" />
+                        <p className="text-lg font-medium">Sem dados correspondentes aos filtros</p>
+                        <p className="text-sm">Importe uma planilha ou ajuste os filtros</p>
+                    </div>
                 ) : (
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-gray-50 sticky top-0 z-10 text-xs uppercase text-gray-500 font-semibold tracking-wider">
-                            <tr>
-                                <th className="px-2 py-2 border-b">Colaborador</th>
-                                <th className="px-2 py-2 border-b">Sócio</th> 
-                                <th className="px-2 py-2 border-b w-24">Freq.</th>
-                                <th className="px-2 py-2 border-b">Semana</th>
-                                <th className="px-2 py-2 border-b">Datas</th>
+                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
+                            <tr className="border-b-2 border-gray-200">
+                                <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Colaborador</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Sócio</th> 
+                                <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider text-center">Frequência</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Distribuição Semanal</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {reportData.map((item, idx) => (
-                                <tr key={idx} className="hover:bg-blue-50/50">
-                                    <td className="px-2 py-1 font-medium text-[#112240] text-xs whitespace-nowrap">{item.nome}</td>
-                                    <td className="px-2 py-1 text-xs text-gray-600 whitespace-nowrap">
-                                        {item.socio !== '-' ? <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200">{item.socio}</span> : <span className="text-red-400 text-xs italic bg-red-50 px-1.5 py-0.5 rounded">Sem Sócio</span>}
-                                    </td>
-                                    <td className="px-2 py-1">
-                                        <div className="flex items-center gap-1">
-                                            <span className="text-xs font-bold text-[#112240]">{item.diasPresentes}d</span>
-                                            <div className="w-10 h-1 bg-gray-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${item.diasPresentes >= 20 ? 'bg-green-500' : item.diasPresentes >= 10 ? 'bg-blue-500' : 'bg-yellow-500'}`} style={{ width: `${Math.min((item.diasPresentes / 22) * 100, 100)}%` }} /></div>
+                                <tr key={idx} className="hover:bg-blue-50/40 transition-colors group">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                                                {item.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-[#112240] text-base">{item.nome}</p>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td className="px-2 py-1">
-                                        <div className="flex gap-1">
+                                    <td className="px-6 py-4">
+                                        {item.socio !== '-' ? (
+                                            <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium">
+                                                <Briefcase className="h-3.5 w-3.5" />
+                                                {item.socio}
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1.5 text-red-500 text-sm italic bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
+                                                <X className="h-3.5 w-3.5" />
+                                                Sem Sócio
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-2xl font-bold text-[#112240]">{item.diasPresentes}</span>
+                                                <span className="text-sm text-gray-500 font-medium">dias</span>
+                                            </div>
+                                            <div className="w-full max-w-[120px] h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div 
+                                                    className={`h-full rounded-full transition-all ${
+                                                        item.diasPresentes >= 20 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 
+                                                        item.diasPresentes >= 15 ? 'bg-gradient-to-r from-blue-500 to-cyan-500' : 
+                                                        item.diasPresentes >= 10 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' :
+                                                        'bg-gradient-to-r from-red-500 to-rose-500'
+                                                    }`} 
+                                                    style={{ width: `${Math.min((item.diasPresentes / 22) * 100, 100)}%` }} 
+                                                />
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex gap-2">
                                             {['Seg', 'Ter', 'Qua', 'Qui', 'Sex'].map(day => (
-                                                <div key={day} className={`text-[10px] px-1 py-0.5 rounded border ${item.diasSemana[day] ? 'bg-green-50 border-green-200 text-green-700 font-bold' : 'bg-gray-50 border-gray-100 text-gray-300'}`}>{day.charAt(0)}{item.diasSemana[day] ? `(${item.diasSemana[day]})` : ''}</div>
+                                                <div 
+                                                    key={day} 
+                                                    className={`flex flex-col items-center justify-center min-w-[44px] h-14 rounded-lg border-2 transition-all ${
+                                                        item.diasSemana[day] 
+                                                            ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-300 shadow-sm' 
+                                                            : 'bg-gray-50 border-gray-200'
+                                                    }`}
+                                                >
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wide ${
+                                                        item.diasSemana[day] ? 'text-green-700' : 'text-gray-400'
+                                                    }`}>
+                                                        {day}
+                                                    </span>
+                                                    <span className={`text-lg font-bold ${
+                                                        item.diasSemana[day] ? 'text-green-600' : 'text-gray-300'
+                                                    }`}>
+                                                        {item.diasSemana[day] || '–'}
+                                                    </span>
+                                                </div>
                                             ))}
                                         </div>
-                                    </td>
-                                    <td className="px-2 py-1 text-[10px] text-gray-500 font-mono tracking-tighter truncate max-w-xs" title={item.datas.join(', ')}>
-                                        {item.datas.join(', ')}
                                     </td>
                                 </tr>
                             ))}
@@ -828,29 +925,46 @@ export function Presencial() {
              <div className="flex-1 overflow-auto">
                  {filteredData.filteredRules.length === 0 ? (
                      <div className="h-64 flex flex-col items-center justify-center text-gray-400">
-                         <Users className="h-12 w-12 mb-3 opacity-20" />
-                         <p>Nenhuma regra encontrada com os filtros atuais.</p>
+                         <Users className="h-16 w-16 mb-4 opacity-20" />
+                         <p className="text-lg font-medium">Nenhuma regra encontrada</p>
+                         <p className="text-sm">Crie uma nova regra ou ajuste os filtros</p>
                      </div>
                  ) : (
                     <table className="w-full text-left border-collapse">
-                    <thead className="bg-gray-50 sticky top-0 z-10 text-xs uppercase text-gray-500 font-semibold tracking-wider">
-                        <tr>
-                            <th className="px-4 py-2 border-b">Colaborador</th>
-                            <th className="px-4 py-2 border-b">Sócio Responsável</th>
-                            <th className="px-4 py-2 border-b">Meta</th>
-                            <th className="px-4 py-2 border-b text-right">Ações</th>
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
+                        <tr className="border-b-2 border-gray-200">
+                            <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Colaborador</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Sócio Responsável</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider text-center">Meta Semanal</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider text-right">Ações</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {filteredData.filteredRules.map((rule) => (
-                            <tr key={rule.id} className="hover:bg-gray-50 text-sm text-gray-700 group">
-                                <td className="px-4 py-2 font-medium text-[#112240]">{toTitleCase(rule.nome_colaborador)}</td>
-                                <td className="px-4 py-2">{toTitleCase(rule.socio_responsavel)}</td>
-                                <td className="px-4 py-2"><span className="bg-gray-100 px-2 py-0.5 rounded border border-gray-200 font-medium">{rule.meta_semanal}x</span></td>
-                                <td className="px-4 py-2 text-right">
+                            <tr key={rule.id} className="hover:bg-gray-50 transition-colors group">
+                                <td className="px-6 py-4 font-semibold text-[#112240] text-base">{toTitleCase(rule.nome_colaborador)}</td>
+                                <td className="px-6 py-4 text-gray-700">{toTitleCase(rule.socio_responsavel)}</td>
+                                <td className="px-6 py-4 text-center">
+                                    <span className="inline-flex items-center justify-center bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-200 font-bold text-sm min-w-[60px]">
+                                        {rule.meta_semanal}x
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
                                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => handleOpenModal(rule)} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Pencil className="h-4 w-4" /></button>
-                                        <button onClick={() => handleDeleteRule(rule.id)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="h-4 w-4" /></button>
+                                        <button 
+                                            onClick={() => handleOpenModal(rule)} 
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="Editar"
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteRule(rule.id)} 
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Excluir"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
