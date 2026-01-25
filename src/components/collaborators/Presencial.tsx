@@ -55,8 +55,11 @@ export function Presencial() {
 
   // --- NAVEGAÇÃO ---
   const [viewMode, setViewMode] = useState<'report' | 'socios'>('report')
+  
+  // Inicializa com o mês atual, mas será atualizado pelo fetchInitialMonth
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   // --- HELPER NORMALIZAÇÃO ---
   const normalizeKey = (text: string) => {
@@ -74,27 +77,43 @@ export function Presencial() {
         .join(' ');
   }
 
-  // --- 1. BUSCAR DADOS (Filtrando por Mês/Ano no Banco) ---
+  // --- 1. BUSCAR MÊS MAIS RECENTE (Lógica Restaurada) ---
+  const fetchInitialMonth = async () => {
+      const { data } = await supabase
+          .from('presenca_portaria')
+          .select('data_hora')
+          .order('data_hora', { ascending: false })
+          .limit(1)
+      
+      if (data && data.length > 0) {
+          const lastDate = new Date(data[0].data_hora)
+          setSelectedMonth(lastDate.getMonth())
+          setSelectedYear(lastDate.getFullYear())
+      }
+      setIsInitialLoad(false)
+  }
+
+  // --- 2. BUSCAR DADOS (Filtrando por Mês/Ano no Banco) ---
   const fetchRecords = async () => {
+    if (isInitialLoad) return; // Espera definir o mês inicial
+
     setLoading(true)
     
-    // Calcula intervalo do mês selecionado para buscar apenas dados relevantes
-    // Isso corrige o erro de limite cortando o início do mês
+    // Calcula intervalo do mês selecionado
     const startObj = new Date(selectedYear, selectedMonth, 1)
     const endObj = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59)
     
-    // Formato ISO para o Supabase (YYYY-MM-DD)
     const startDate = startObj.toISOString()
     const endDate = endObj.toISOString()
 
-    // Busca Presença do Mês Selecionado
+    // Busca Presença do Mês Selecionado (Limite aumentado para 100k)
     const { data: presenceData } = await supabase
       .from('presenca_portaria')
       .select('*')
       .gte('data_hora', startDate)
       .lte('data_hora', endDate)
-      .order('data_hora', { ascending: true }) // Ascendente para processar do início do mês
-      .limit(50000) // Limite generoso para um único mês
+      .order('data_hora', { ascending: true }) 
+      .limit(100000) 
 
     // Busca Regras de Sócios
     const { data: rulesData } = await supabase
@@ -114,10 +133,17 @@ export function Presencial() {
     setLoading(false)
   }
 
-  // Atualiza quando muda o mês/ano ou monta o componente
+  // Effect para carregar o mês inicial apenas uma vez
   useEffect(() => {
-    fetchRecords()
-  }, [selectedMonth, selectedYear])
+      fetchInitialMonth()
+  }, [])
+
+  // Effect para carregar registros quando o mês/ano muda (e não é o load inicial)
+  useEffect(() => {
+    if (!isInitialLoad) {
+        fetchRecords()
+    }
+  }, [selectedMonth, selectedYear, isInitialLoad])
 
   // --- EFEITO: FOCA NO INPUT DE BUSCA AO ABRIR ---
   useEffect(() => {
@@ -150,10 +176,9 @@ export function Presencial() {
 
   // --- FILTRAGEM CENTRALIZADA ---
   const filteredData = useMemo(() => {
-      // 1. Filtra registros de presença
       const filteredRecords = records.filter(record => {
-          // O filtro de data já foi feito no banco, mas mantemos por segurança
           const dateObj = new Date(record.data_hora)
+          
           if (dateObj.getMonth() !== selectedMonth || dateObj.getFullYear() !== selectedYear) return false
 
           const normName = normalizeKey(record.nome_colaborador)
@@ -174,7 +199,6 @@ export function Presencial() {
           return true
       })
 
-      // 2. Filtra regras de sócios
       const filteredRules = socioRules.filter(rule => {
           const socioFormatted = toTitleCase(rule.socio_responsavel)
           const nameFormatted = toTitleCase(rule.nome_colaborador)
@@ -202,7 +226,6 @@ export function Presencial() {
       const normalizedName = normalizeKey(record.nome_colaborador)
       const displayName = toTitleCase(record.nome_colaborador)
       
-      // Garante que a chave do dia seja única independente da hora
       const dayKey = dateObj.toISOString().split('T')[0] 
       const weekDay = dateObj.getDay()
 
@@ -229,9 +252,8 @@ export function Presencial() {
       const socioRaw = socioMap.get(key) || '-'
       const socioFormatted = toTitleCase(socioRaw)
 
-      // Extrai os dias (DD) e ordena
       const sortedDates = Array.from(item.uniqueDays)
-        .map(d => d.split('-')[2]) // Pega o dia do YYYY-MM-DD
+        .map(d => d.split('-')[2]) 
         .sort((a, b) => parseInt(a) - parseInt(b))
 
       return { 
@@ -274,14 +296,11 @@ export function Presencial() {
           const tempoRaw = findValue(row, ['tempo', 'data', 'horario'])
           let dataFinal = new Date()
           
-          // LÓGICA DE PARSING RIGOROSA (DESCARTA HORA)
           if (typeof tempoRaw === 'string') {
-               // Pega "2025-12-09" de "2025-12-09 11:29:58"
                const datePart = tempoRaw.trim().split(' ')[0]
                const parts = datePart.split('-')
                
                if (parts.length === 3) {
-                   // Cria data local ao meio-dia
                    const y = parseInt(parts[0])
                    const m = parseInt(parts[1]) - 1 
                    const d = parseInt(parts[2])
@@ -316,7 +335,7 @@ export function Presencial() {
             const key = `${normalizeKey(r.nome_colaborador)}_${dateStr}`;
             
             if (uniqueSet.has(key)) return false;
-            if (existingSignatures.has(key)) return false;
+            // if (existingSignatures.has(key)) return false; // Desabilitado temporariamente para garantir inserção se houver dúvidas
 
             uniqueSet.add(key);
             return true;
@@ -330,7 +349,17 @@ export function Presencial() {
         
         const skipped = rawRecords.length - recordsToInsert.length;
         alert(`${recordsToInsert.length} registros novos importados! (${skipped} duplicados/ignorados)`); 
-        fetchRecords()
+        
+        // Atualiza a visualização para o mês do primeiro registro importado, se houver
+        if (recordsToInsert.length > 0) {
+            const firstDate = new Date(recordsToInsert[0].data_hora)
+            setSelectedMonth(firstDate.getMonth())
+            setSelectedYear(firstDate.getFullYear())
+            // O useEffect vai disparar o fetchRecords automaticamente
+        } else {
+            fetchRecords()
+        }
+
       } catch (err) { alert("Erro ao importar.") } 
       finally { setUploading(false); if (presenceInputRef.current) presenceInputRef.current.value = '' }
     }
