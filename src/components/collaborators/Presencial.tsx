@@ -77,12 +77,12 @@ export function Presencial() {
   const fetchRecords = async () => {
     setLoading(true)
     
-    // Busca Presença
+    // Busca Presença (Aumentado limite para evitar corte de dados em meses cheios)
     const { data: presenceData } = await supabase
       .from('presenca_portaria')
       .select('*')
       .order('data_hora', { ascending: false })
-      .limit(10000)
+      .limit(40000)
 
     // Busca Regras de Sócios
     const { data: rulesData } = await supabase
@@ -267,18 +267,41 @@ export function Presencial() {
           let nome = findValue(row, ['nome', 'colaborador', 'funcionario']) || 'Desconhecido'
           if (typeof nome === 'string') nome = nome.trim()
           const tempoRaw = findValue(row, ['tempo', 'data', 'horario'])
+          
           let dataFinal = new Date()
-          if (typeof tempoRaw === 'string') dataFinal = new Date(tempoRaw)
-          else if (typeof tempoRaw === 'number') dataFinal = new Date((tempoRaw - 25569) * 86400 * 1000)
-          return { nome_colaborador: nome, data_hora: isNaN(dataFinal.getTime()) ? new Date() : dataFinal, arquivo_origem: file.name }
+          if (typeof tempoRaw === 'string') {
+               // Garante compatibilidade ISO
+               dataFinal = new Date(tempoRaw.trim().replace(' ', 'T'))
+          }
+          else if (typeof tempoRaw === 'number') {
+               dataFinal = new Date((tempoRaw - 25569) * 86400 * 1000)
+          }
+
+          if (isNaN(dataFinal.getTime())) dataFinal = new Date()
+          
+          return { nome_colaborador: nome, data_hora: dataFinal, arquivo_origem: file.name }
         }).filter((r:any) => r.nome_colaborador !== 'Desconhecido')
+
+        // CRIA UM SET COM AS ASSINATURAS DOS REGISTROS JÁ EXISTENTES NO BANCO (CARREGADOS NA TELA)
+        // Isso evita inserir o mesmo registro se a planilha for importada novamente
+        const existingSignatures = new Set(records.map(r => {
+             const d = new Date(r.data_hora);
+             // Usa Time para precisão de milissegundos se houver, ou apenas segundo
+             return `${normalizeKey(r.nome_colaborador)}_${d.getTime()}`
+        }));
 
         // Remove duplicatas exatas baseadas em Nome + DataHora
         const uniqueSet = new Set();
         const recordsToInsert = rawRecords.filter(r => {
             const key = `${normalizeKey(r.nome_colaborador)}_${r.data_hora.getTime()}`;
+            
+            // 1. Remove duplicatas dentro do próprio arquivo
             if (uniqueSet.has(key)) return false;
             uniqueSet.add(key);
+            
+            // 2. Remove duplicatas se já existir no banco (baseado no estado atual)
+            if (existingSignatures.has(key)) return false;
+
             return true;
         });
 
@@ -287,7 +310,10 @@ export function Presencial() {
             await supabase.from('presenca_portaria').insert(recordsToInsert.slice(i, i + BATCH_SIZE))
             setProgress(Math.round(((i / BATCH_SIZE) + 1) / total * 100))
         }
-        alert(`${recordsToInsert.length} registros importados (Duplicatas removidas)!`); fetchRecords()
+        
+        const skipped = rawRecords.length - recordsToInsert.length;
+        alert(`${recordsToInsert.length} registros novos importados! (${skipped} duplicados ignorados)`); 
+        fetchRecords()
       } catch (err) { alert("Erro ao importar.") } 
       finally { setUploading(false); if (presenceInputRef.current) presenceInputRef.current.value = '' }
     }
