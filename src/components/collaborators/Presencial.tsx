@@ -87,6 +87,7 @@ export function Presencial() {
       
       if (data && data.length > 0) {
           const lastDate = new Date(data[0].data_hora)
+          // Usa UTC para evitar que o fuso horário mude o mês
           setSelectedMonth(lastDate.getUTCMonth())
           setSelectedYear(lastDate.getUTCFullYear())
       }
@@ -99,13 +100,14 @@ export function Presencial() {
 
     setLoading(true)
     
+    // Define intervalo cobrindo todo o mês em UTC
     const startObj = new Date(Date.UTC(selectedYear, selectedMonth, 1, 0, 0, 0))
     const endObj = new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999))
     
     const startDate = startObj.toISOString()
     const endDate = endObj.toISOString()
 
-    // Busca Presença do Mês Selecionado
+    // Busca com limite alto
     const { data: presenceData } = await supabase
       .from('presenca_portaria')
       .select('*')
@@ -114,7 +116,7 @@ export function Presencial() {
       .order('data_hora', { ascending: true }) 
       .limit(100000) 
 
-    // Busca Regras de Sócios
+    // Busca Regras
     const { data: rulesData } = await supabase
       .from('socios_regras')
       .select('*')
@@ -224,6 +226,7 @@ export function Presencial() {
       const normalizedName = normalizeKey(record.nome_colaborador)
       const displayName = toTitleCase(record.nome_colaborador)
       
+      // Usa YYYY-MM-DD em UTC para chave única
       const dayKey = dateObj.toISOString().split('T')[0] 
       const weekDay = dateObj.getUTCDay()
 
@@ -250,8 +253,9 @@ export function Presencial() {
       const socioRaw = socioMap.get(key) || '-'
       const socioFormatted = toTitleCase(socioRaw)
 
+      // Extrai os dias e ordena
       const sortedDates = Array.from(item.uniqueDays)
-        .map(d => d.split('-')[2]) 
+        .map(d => d.split('-')[2]) // Extrai DD de YYYY-MM-DD
         .sort((a, b) => parseInt(a) - parseInt(b))
 
       return { 
@@ -292,69 +296,89 @@ export function Presencial() {
           if (typeof nome === 'string') nome = nome.trim()
           
           const tempoRaw = findValue(row, ['tempo', 'data', 'horario'])
-          let dataFinal = new Date()
+          let dataFinal: Date | null = null
           
+          // PARSING MANUAL RIGOROSO PARA IGNORAR A HORA E FUSO
           if (typeof tempoRaw === 'string') {
+               // Esperado: "2025-12-02 13:11:38" ou "2025-12-02"
+               // Pega só a parte antes do espaço
                const datePart = tempoRaw.trim().split(' ')[0]
-               const parts = datePart.split('-')
                
+               // Verifica se é formato AAAA-MM-DD
+               const parts = datePart.split('-')
                if (parts.length === 3) {
                    const y = parseInt(parts[0])
-                   const m = parseInt(parts[1]) - 1 
+                   const m = parseInt(parts[1]) - 1 // JS months 0-11
                    const d = parseInt(parts[2])
+                   
+                   // Cria data UTC ao Meio-Dia (12:00:00) para garantir segurança contra shifts de timezone
+                   // Ex: 2025-12-02T12:00:00.000Z
                    dataFinal = new Date(Date.UTC(y, m, d, 12, 0, 0))
-               } else {
-                   dataFinal = new Date(tempoRaw)
                }
           }
+          // Fallback para número serial do Excel
           else if (typeof tempoRaw === 'number') {
                const dateObj = new Date((tempoRaw - 25569) * 86400 * 1000)
                dataFinal = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 12, 0, 0))
           }
 
-          if (isNaN(dataFinal.getTime())) return null;
+          // Se falhou o parsing ou data inválida, ignora
+          if (!dataFinal || isNaN(dataFinal.getTime())) return null;
           
-          return { nome_colaborador: nome, data_hora: dataFinal, arquivo_origem: file.name }
+          return { nome_colaborador: nome, data_hora: dataFinal }
         }).filter((r:any) => r && r.nome_colaborador !== 'Desconhecido')
 
-        // DEDUPLICAÇÃO
+        // DEDUPLICAÇÃO NO ARQUIVO
         const uniqueSet = new Set();
-        // Verifica duplicatas na importação atual e no banco (simulado)
+        
+        // DEDUPLICAÇÃO COM O BANCO JÁ CARREGADO
+        const existingSignatures = new Set(records.map(r => {
+             const d = new Date(r.data_hora);
+             const dateStr = d.toISOString().split('T')[0]; 
+             return `${normalizeKey(r.nome_colaborador)}_${dateStr}`
+        }));
+
         const recordsToInsert = rawRecords.filter((r: any) => {
-            const d = r.data_hora;
-            const dateStr = d.toISOString().split('T')[0]; 
+            const d = r.data_hora as Date;
+            const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
             const key = `${normalizeKey(r.nome_colaborador)}_${dateStr}`;
             
-            // Só importa 1 registro por dia por pessoa
+            // 1. Já está nesta lista de upload?
             if (uniqueSet.has(key)) return false;
+            
+            // 2. Já está no banco (visível na tela)?
+            if (existingSignatures.has(key)) return false;
+
             uniqueSet.add(key);
             return true;
         });
 
-        const BATCH_SIZE = 100; const total = Math.ceil(recordsToInsert.length / BATCH_SIZE)
+        // INSERÇÃO EM LOTES
+        const BATCH_SIZE = 1000; // Aumentado para eficiência
+        const total = Math.ceil(recordsToInsert.length / BATCH_SIZE)
+        
         for (let i = 0; i < recordsToInsert.length; i += BATCH_SIZE) {
-            const batch = recordsToInsert.slice(i, i + BATCH_SIZE)
+            const batch = recordsToInsert.slice(i, i + BATCH_SIZE).map(r => ({
+                nome_colaborador: r.nome_colaborador,
+                data_hora: r.data_hora, // Envia objeto Date, Supabase converte para ISO UTC
+                arquivo_origem: file.name
+            }))
             
-            // Tenta deletar duplicatas existentes no banco antes de inserir (substituição segura)
-            // Isso previne erro de chave duplicada ou duplicação real se a verificação de memória falhar
-            // Nota: Supabase não tem UPSERT fácil sem chave única definida, então inserimos ignorando erros ou confiamos na filtragem
             const { error } = await supabase.from('presenca_portaria').insert(batch)
-            
-            if (error) console.error("Erro no lote " + i, error)
+            if (error) console.error('Erro insert:', error)
             
             setProgress(Math.round(((i / BATCH_SIZE) + 1) / total * 100))
         }
         
         const skipped = rawRecords.length - recordsToInsert.length;
-        alert(`${recordsToInsert.length} registros novos importados! (${skipped} duplicados/ignorados)`); 
+        alert(`${recordsToInsert.length} registros novos importados! (${skipped} já existiam ou duplicados no arquivo)`); 
         
-        // Atualiza para o mês do primeiro registro importado
+        // ATUALIZA A TELA PARA O MÊS DOS DADOS IMPORTADOS
         if (recordsToInsert.length > 0) {
             const firstDate = new Date(recordsToInsert[0].data_hora)
             setSelectedMonth(firstDate.getUTCMonth())
             setSelectedYear(firstDate.getUTCFullYear())
-            // Force fetch se o mês for o mesmo
-            fetchRecords()
+            // O useEffect de selectedMonth vai disparar o fetchRecords
         } else {
             fetchRecords()
         }
