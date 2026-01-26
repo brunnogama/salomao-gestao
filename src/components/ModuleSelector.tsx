@@ -1,8 +1,8 @@
-import { Gift, UserCog, Home, LogOut, Banknote } from 'lucide-react'
+import { Gift, UserCog, Home, LogOut, Banknote, Package } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface ModuleSelectorProps {
-  onSelect: (module: 'crm' | 'family' | 'collaborators' | 'financial') => void;
+  onSelect: (module: 'crm' | 'family' | 'collaborators' | 'operational' | 'financial') => void;
   userName: string;
 }
 
@@ -37,7 +37,8 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
             <p className="text-gray-500">Selecione o módulo que deseja acessar hoje.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl w-full">
+        {/* Ajustado grid para acomodar 5 itens harmonicamente em telas grandes (xl) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8 max-w-7xl w-full">
             
             {/* CARD CRM */}
             <div 
@@ -73,6 +74,18 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
                 </div>
                 <h2 className="text-xl font-bold text-[#112240] mb-2">Recursos Humanos</h2>
                 <p className="text-sm text-gray-500">Gestão estratégica de pessoas, benefícios e departamento pessoal.</p>
+            </div>
+
+            {/* CARD OPERACIONAL (NOVO) */}
+            <div 
+                onClick={() => onSelect('operational')}
+                className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-orange-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
+            >
+                <div className="p-4 bg-orange-50 text-orange-700 rounded-full mb-6 group-hover:scale-110 transition-transform">
+                    <Package className="h-10 w-10" />
+                </div>
+                <h2 className="text-xl font-bold text-[#112240] mb-2">Operacional</h2>
+                <p className="text-sm text-gray-500">Compras de insumos, controle de validade e gestão de marcas.</p>
             </div>
 
             {/* CARD FINANCEIRO */}
