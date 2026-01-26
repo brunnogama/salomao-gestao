@@ -13,18 +13,21 @@ import { logAction } from '../lib/logger'
 interface UserPermissions {
   geral: boolean;
   crm: boolean;
-  juridico: boolean;
-  rh: boolean;
-  sistema: boolean;
+  family: boolean;
+  collaborators: boolean;
+  operational: boolean;
+  financial: boolean;
 }
 
 interface AppUser {
-  id: number;
+  id: string; // UUID do user_profiles
+  user_id: string; // UUID do auth.users
   nome: string;
   email: string;
   cargo: string;
+  role: string;
   ativo: boolean;
-  modulos_acesso: UserPermissions;
+  allowed_modules: string[]; // Array de módulos permitidos
 }
 
 interface GenericItem {
@@ -36,15 +39,36 @@ interface GenericItem {
 const DEFAULT_PERMISSIONS: UserPermissions = {
   geral: true,
   crm: true,
-  juridico: true,
-  rh: true,
-  sistema: true
+  family: false,
+  collaborators: false,
+  operational: false,
+  financial: false
 }
 
 // EMAIL DO SUPER ADMIN (Hardcoded para segurança total)
 const SUPER_ADMIN_EMAIL = 'marcio.gama@salomaoadv.com.br';
 
+// Mapeamento de módulos (interface antiga → novo formato)
+const MODULE_MAP: Record<string, string> = {
+  'crm': 'crm',
+  'family': 'family',
+  'collaborators': 'collaborators', // RH
+  'operational': 'operational',
+  'financial': 'financial'
+}
+
 const CHANGELOG = [
+  {
+    version: '2.6.0',
+    date: '26/01/2026',
+    type: 'major',
+    title: '🔒 Correção de Permissões',
+    changes: [
+      'Sincronização completa entre Settings e ModuleSelector',
+      'Migração para user_profiles com allowed_modules',
+      'Mapeamento correto de módulos do ecossistema'
+    ]
+  },
   {
     version: '1.8.0',
     date: '26/01/2026',
@@ -55,16 +79,6 @@ const CHANGELOG = [
       'Feedback visual de permissão negada',
       'Hardcode de Super Administrador implementado'
     ]
-  },
-  {
-    version: '1.7.0',
-    date: '26/01/2026',
-    type: 'major',
-    title: 'Dashboard de Módulos',
-    changes: [
-      'Nova tela inicial de seleção de módulos',
-      'Navegação centralizada'
-    ]
   }
 ]
 
@@ -72,7 +86,7 @@ export function Settings() {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' })
   
-  // Controle de Módulos (Tabs) - 'menu' é o estado inicial OBRIGATÓRIO
+  // Controle de Módulos (Tabs)
   const [activeModule, setActiveModule] = useState<'menu' | 'geral' | 'crm' | 'juridico' | 'rh' | 'sistema'>('menu')
   
   const [users, setUsers] = useState<AppUser[]>([])
@@ -85,7 +99,7 @@ export function Settings() {
     nome: '', 
     email: '', 
     cargo: 'Colaborador',
-    modulos_acesso: DEFAULT_PERMISSIONS
+    allowed_modules: ['crm'] // Array de strings
   })
 
   const [magistradosConfig, setMagistradosConfig] = useState({ pin: '', emails: '' })
@@ -98,9 +112,9 @@ export function Settings() {
   const [currentUserPermissions, setCurrentUserPermissions] = useState<UserPermissions>(DEFAULT_PERMISSIONS)
   const [sessionUserId, setSessionUserId] = useState<string>('')
   
-  // Lógica de Admin: Verifica Cargo no banco OU se é o Super Admin hardcoded
+  // Lógica de Admin
   const isSuperAdmin = currentUserEmail === SUPER_ADMIN_EMAIL;
-  const isAdmin = ['Administrador', 'Admin'].includes(currentUserRole) || isSuperAdmin;
+  const isAdmin = currentUserRole.toLowerCase() === 'admin' || isSuperAdmin;
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -112,7 +126,6 @@ export function Settings() {
   const [newSocio, setNewSocio] = useState('')
   const [isAddingSocio, setIsAddingSocio] = useState(false)
 
-  // ✅ CORREÇÃO: Resetar para menu ao trocar de usuário
   useEffect(() => {
     fetchCurrentUserMetadata();
     fetchUsers();
@@ -120,12 +133,10 @@ export function Settings() {
     fetchBrindes();
     fetchSocios();
 
-    // Listener para detectar mudança de sessão (logout/login)
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         const newUserId = session?.user?.id || ''
         
-        // Se mudou de usuário, reseta para o menu
         if (sessionUserId && sessionUserId !== newUserId) {
           setActiveModule('menu')
         }
@@ -142,7 +153,6 @@ export function Settings() {
     }
   }, [sessionUserId])
 
-  // ✅ CORREÇÃO: Forçar menu ao carregar componente pela primeira vez
   useEffect(() => {
     setActiveModule('menu')
   }, [])
@@ -194,31 +204,45 @@ export function Settings() {
   // --- FUNÇÕES GERAIS ---
   const fetchCurrentUserMetadata = async () => {
     try {
-      const { data: { user } } = await (supabase.auth as any).getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (user?.email) {
         setCurrentUserEmail(user.email);
         setSessionUserId(user.id);
         
-        // Se for Super Admin, força permissões totais localmente
+        // Se for Super Admin, força permissões totais
         if (user.email === SUPER_ADMIN_EMAIL) {
-            setCurrentUserRole('Administrador');
+            setCurrentUserRole('admin');
             setCurrentUserPermissions({
-                geral: true, crm: true, juridico: true, rh: true, sistema: true
+                geral: true, 
+                crm: true, 
+                family: true, 
+                collaborators: true, 
+                operational: true, 
+                financial: true
             });
             return;
         }
 
+        // Busca permissões de user_profiles
         const { data } = await supabase
-          .from('usuarios_permitidos')
-          .select('cargo, modulos_acesso')
-          .eq('email', user.email)
+          .from('user_profiles')
+          .select('role, allowed_modules')
+          .eq('user_id', user.id)
           .single()
           
         if (data) {
-          setCurrentUserRole(data.cargo)
-          if (data.modulos_acesso) {
-            setCurrentUserPermissions(data.modulos_acesso)
-          }
+          setCurrentUserRole(data.role || 'user')
+          
+          // Converte array de módulos para objeto de permissões
+          const modules = data.allowed_modules || []
+          setCurrentUserPermissions({
+            geral: true, // Sempre liberado
+            crm: modules.includes('crm'),
+            family: modules.includes('family'),
+            collaborators: modules.includes('collaborators'),
+            operational: modules.includes('operational'),
+            financial: modules.includes('financial')
+          })
         }
       }
     } catch (error) {
@@ -238,50 +262,71 @@ export function Settings() {
 
   const fetchUsers = async () => {
     setLoadingUsers(true)
-    const { data } = await supabase.from('usuarios_permitidos').select('*').order('nome')
-    if (data) {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('user_id, email, role, allowed_modules, created_at')
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      
+      if (data) {
         setUsers(data.map((u: any) => ({
-            id: u.id,
-            nome: u.nome || u.email.split('@')[0],
-            email: u.email,
-            cargo: u.cargo || 'Colaborador',
-            ativo: u.ativo !== false,
-            modulos_acesso: u.modulos_acesso || DEFAULT_PERMISSIONS
+          id: u.user_id, // UUID
+          user_id: u.user_id,
+          nome: u.email.split('@')[0], // Extrai nome do email
+          email: u.email,
+          cargo: u.role === 'admin' ? 'Administrador' : 'Colaborador',
+          role: u.role || 'user',
+          ativo: true, // Por padrão ativo
+          allowed_modules: u.allowed_modules || []
         })))
+      }
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error)
+    } finally {
+      setLoadingUsers(false)
     }
-    setLoadingUsers(false)
   }
 
   const openUserModal = (user?: AppUser) => {
     if (!isAdmin) return alert("Apenas administradores podem gerenciar usuários.");
+    
     if (user) {
-        setEditingUser(user)
-        setUserForm({ 
-            nome: user.nome, 
-            email: user.email, 
-            cargo: user.cargo,
-            modulos_acesso: user.modulos_acesso || DEFAULT_PERMISSIONS
-        })
+      setEditingUser(user)
+      setUserForm({ 
+        nome: user.nome, 
+        email: user.email, 
+        cargo: user.cargo,
+        allowed_modules: user.allowed_modules || ['crm']
+      })
     } else {
-        setEditingUser(null)
-        setUserForm({ 
-            nome: '', 
-            email: '', 
-            cargo: 'Colaborador',
-            modulos_acesso: DEFAULT_PERMISSIONS 
-        })
+      setEditingUser(null)
+      setUserForm({ 
+        nome: '', 
+        email: '', 
+        cargo: 'Colaborador',
+        allowed_modules: ['crm'] // Apenas CRM por padrão
+      })
     }
     setIsUserModalOpen(true)
   }
 
-  const handleTogglePermission = (module: keyof UserPermissions) => {
-      setUserForm(prev => ({
-          ...prev,
-          modulos_acesso: {
-              ...prev.modulos_acesso,
-              [module]: !prev.modulos_acesso[module]
-          }
-      }))
+  const handleToggleModule = (moduleKey: string) => {
+    setUserForm(prev => {
+      const modules = [...prev.allowed_modules]
+      const index = modules.indexOf(moduleKey)
+      
+      if (index > -1) {
+        // Remove o módulo
+        modules.splice(index, 1)
+      } else {
+        // Adiciona o módulo
+        modules.push(moduleKey)
+      }
+      
+      return { ...prev, allowed_modules: modules }
+    })
   }
 
   const handleSaveConfigMagistrados = async () => {
@@ -309,37 +354,85 @@ export function Settings() {
   const handleSaveUser = async () => {
     if (!isAdmin) return;
     if (!userForm.email) return alert("E-mail obrigatório")
+    
     try {
-        const payload = {
-            nome: userForm.nome,
+      // Verifica se o email já existe no auth.users
+      const { data: existingUser } = await supabase
+        .from('user_profiles')
+        .select('user_id')
+        .eq('email', userForm.email)
+        .single()
+
+      const role = userForm.cargo === 'Administrador' ? 'admin' : 'user'
+      
+      if (editingUser) {
+        // Atualiza usuário existente
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({
             email: userForm.email,
-            cargo: userForm.cargo,
-            modulos_acesso: userForm.modulos_acesso
+            role: role,
+            allowed_modules: userForm.allowed_modules
+          })
+          .eq('user_id', editingUser.user_id)
+        
+        if (error) throw error
+        
+        await logAction('UPDATE', 'USER_PROFILES', `Atualizou ${userForm.email}`)
+      } else {
+        // Novo usuário - precisa buscar o user_id do auth.users
+        const { data: authUser } = await supabase
+          .from('auth.users')
+          .select('id')
+          .eq('email', userForm.email)
+          .single()
+        
+        if (!authUser) {
+          alert('Usuário não encontrado no sistema de autenticação. O usuário precisa fazer login pelo menos uma vez antes de ser configurado.')
+          return
         }
 
-        if (editingUser) {
-             await supabase.from('usuarios_permitidos').update(payload).eq('id', editingUser.id)
-        } else {
-             await supabase.from('usuarios_permitidos').insert({ ...payload, ativo: true })
-        }
-        setIsUserModalOpen(false)
-        fetchUsers()
+        // Insere novo perfil
+        const { error } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: authUser.id,
+            email: userForm.email,
+            role: role,
+            allowed_modules: userForm.allowed_modules
+          })
+        
+        if (error) throw error
+        
+        await logAction('CREATE', 'USER_PROFILES', `Criou perfil para ${userForm.email}`)
+      }
+      
+      setIsUserModalOpen(false)
+      fetchUsers()
+      setStatus({ type: 'success', message: 'Usuário salvo com sucesso!' })
+      
     } catch (e: any) {
-        alert("Erro: " + e.message)
+      console.error('Erro ao salvar usuário:', e)
+      setStatus({ type: 'error', message: 'Erro: ' + e.message })
     }
-  }
-
-  const handleToggleActive = async (user: AppUser) => {
-    if (!isAdmin) return alert("Apenas administradores podem alterar status.");
-    await supabase.from('usuarios_permitidos').update({ ativo: !user.ativo }).eq('id', user.id)
-    fetchUsers()
   }
 
   const handleDeleteUser = async (user: AppUser) => {
     if (!isAdmin) return alert("Apenas administradores podem excluir usuários.");
+    if (user.email === SUPER_ADMIN_EMAIL) return alert("Não é possível excluir o Super Admin!");
+    
     if (confirm(`Excluir usuário ${user.email}?`)) {
-        await supabase.from('usuarios_permitidos').delete().eq('id', user.id)
+      const { error } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('user_id', user.user_id)
+      
+      if (error) {
+        alert('Erro: ' + error.message)
+      } else {
+        await logAction('DELETE', 'USER_PROFILES', `Excluiu ${user.email}`)
         fetchUsers()
+      }
     }
   }
 
@@ -402,35 +495,28 @@ export function Settings() {
     finally { setLoading(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
 
-  // ✅ CORREÇÃO: Função para trocar módulo com verificação de permissão
   const handleModuleChange = (newModule: 'menu' | 'geral' | 'crm' | 'juridico' | 'rh' | 'sistema') => {
-    // Se for menu ou admin, permite
     if (newModule === 'menu' || isAdmin) {
       setActiveModule(newModule)
       return
     }
 
-    // Se não for admin, verifica permissão
-    if (!currentUserPermissions[newModule]) {
-      // Força mostrar tela de bloqueio
+    if (!currentUserPermissions[newModule === 'rh' ? 'collaborators' : newModule]) {
       setActiveModule(newModule)
       return
     }
 
-    // Tem permissão, pode acessar
     setActiveModule(newModule)
   }
 
-  // --- RENDERIZAR BLOQUEIO DE ACESSO (MENSAGEM ELEGANTE) ---
-  if (activeModule !== 'menu' && !currentUserPermissions[activeModule] && !isAdmin) {
+  // --- RENDERIZAR BLOQUEIO DE ACESSO ---
+  if (activeModule !== 'menu' && !currentUserPermissions[activeModule === 'rh' ? 'collaborators' : activeModule] && !isAdmin) {
       return (
           <div className="max-w-7xl mx-auto space-y-6">
-               {/* HEADER DE NAVEGAÇÃO */}
               <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
                    <button onClick={() => handleModuleChange('menu')} className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"><LayoutGrid className="h-4 w-4" /> Menu</button>
               </div>
 
-              {/* TELA DE BLOQUEIO */}
               <div className="flex flex-col items-center justify-center h-[500px] bg-white rounded-2xl shadow-sm border border-gray-200 animate-in zoom-in-95 duration-300">
                   <div className="bg-red-50 p-6 rounded-full mb-6 relative">
                       <EyeOff className="h-16 w-16 text-red-400" />
@@ -454,14 +540,14 @@ export function Settings() {
       )
   }
 
-  // --- RENDERIZAR MENU INICIAL (DASHBOARD) ---
+  // --- RENDERIZAR MENU INICIAL ---
   if (activeModule === 'menu') {
       const modules = [
           { id: 'geral', label: 'Geral', icon: Shield, desc: 'Gestão de Usuários', color: 'bg-gray-900', perm: currentUserPermissions.geral },
           { id: 'crm', label: 'CRM', icon: Briefcase, desc: 'Clientes e Brindes', color: 'bg-blue-600', perm: currentUserPermissions.crm },
-          { id: 'juridico', label: 'Jurídico', icon: Lock, desc: 'Área de Magistrados', color: 'bg-[#112240]', perm: currentUserPermissions.juridico },
-          { id: 'rh', label: 'RH', icon: Users, desc: 'Controle de Pessoal', color: 'bg-green-600', perm: currentUserPermissions.rh },
-          { id: 'sistema', label: 'Sistema', icon: Code, desc: 'Configurações Globais', color: 'bg-red-600', perm: currentUserPermissions.sistema },
+          { id: 'juridico', label: 'Jurídico', icon: Lock, desc: 'Área de Magistrados', color: 'bg-[#112240]', perm: true },
+          { id: 'rh', label: 'RH', icon: Users, desc: 'Controle de Pessoal', color: 'bg-green-600', perm: currentUserPermissions.collaborators },
+          { id: 'sistema', label: 'Sistema', icon: Code, desc: 'Configurações Globais', color: 'bg-red-600', perm: currentUserPermissions.geral },
       ]
 
       return (
@@ -476,7 +562,7 @@ export function Settings() {
                   </p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                   {modules.map((m) => {
                       const hasAccess = isAdmin || m.perm;
                       return (
@@ -512,7 +598,7 @@ export function Settings() {
   return (
     <div className="max-w-7xl mx-auto pb-12 space-y-6">
       
-      {/* SELETOR DE MÓDULOS (NAVBAR - Para navegação rápida) */}
+      {/* SELETOR DE MÓDULOS */}
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
           <button onClick={() => handleModuleChange('menu')} className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors mr-2"><LayoutGrid className="h-4 w-4" /> Menu</button>
           
@@ -523,7 +609,7 @@ export function Settings() {
           <button onClick={() => handleModuleChange('sistema')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'sistema' ? 'bg-red-600 text-white' : 'bg-white text-gray-600 hover:bg-red-50'}`}><Code className="h-4 w-4" /> Sistema</button>
       </div>
       
-      {/* MODAL USUÁRIO COM PERMISSÕES */}
+      {/* MODAL USUÁRIO */}
       {isUserModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
@@ -550,34 +636,64 @@ export function Settings() {
                  
                  <div>
                      <label className="text-xs font-bold text-gray-600 uppercase">E-mail (Login)</label>
-                     <input type="email" className="w-full border border-gray-300 rounded-lg p-2.5 mt-1" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} />
+                     <input type="email" className="w-full border border-gray-300 rounded-lg p-2.5 mt-1" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} disabled={!!editingUser} />
+                     {editingUser && <p className="text-xs text-gray-500 mt-1">O email não pode ser alterado</p>}
                  </div>
 
-                 {/* SELEÇÃO DE PERMISSÕES */}
+                 {/* SELEÇÃO DE MÓDULOS */}
                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <label className="text-xs font-bold text-gray-900 uppercase flex items-center gap-2 mb-3">
-                        <Lock className="h-3 w-3" /> Permissões de Acesso
+                        <Lock className="h-3 w-3" /> Módulos Permitidos
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                         <label className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded cursor-pointer hover:bg-blue-50 transition-colors">
-                            <input type="checkbox" checked={userForm.modulos_acesso.geral} disabled className="text-gray-400 rounded focus:ring-0" />
-                            <span className="text-sm font-medium text-gray-400">Geral (Padrão)</span>
+                            <input 
+                              type="checkbox" 
+                              checked={userForm.allowed_modules.includes('crm')} 
+                              onChange={() => handleToggleModule('crm')} 
+                              className="text-blue-600 rounded focus:ring-blue-500" 
+                            />
+                            <span className="text-sm font-medium text-gray-700">Brindes (CRM)</span>
                         </label>
+                        
                         <label className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded cursor-pointer hover:bg-blue-50 transition-colors">
-                            <input type="checkbox" checked={userForm.modulos_acesso.crm} onChange={() => handleTogglePermission('crm')} className="text-blue-600 rounded focus:ring-blue-500" />
-                            <span className="text-sm font-medium text-gray-700">Módulo CRM</span>
+                            <input 
+                              type="checkbox" 
+                              checked={userForm.allowed_modules.includes('collaborators')} 
+                              onChange={() => handleToggleModule('collaborators')} 
+                              className="text-blue-600 rounded focus:ring-blue-500" 
+                            />
+                            <span className="text-sm font-medium text-gray-700">Recursos Humanos</span>
                         </label>
+                        
                         <label className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded cursor-pointer hover:bg-blue-50 transition-colors">
-                            <input type="checkbox" checked={userForm.modulos_acesso.juridico} onChange={() => handleTogglePermission('juridico')} className="text-blue-600 rounded focus:ring-blue-500" />
-                            <span className="text-sm font-medium text-gray-700">Módulo Jurídico</span>
+                            <input 
+                              type="checkbox" 
+                              checked={userForm.allowed_modules.includes('family')} 
+                              onChange={() => handleToggleModule('family')} 
+                              className="text-blue-600 rounded focus:ring-blue-500" 
+                            />
+                            <span className="text-sm font-medium text-gray-700">Gestão da Família</span>
                         </label>
+                        
                         <label className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded cursor-pointer hover:bg-blue-50 transition-colors">
-                            <input type="checkbox" checked={userForm.modulos_acesso.rh} onChange={() => handleTogglePermission('rh')} className="text-blue-600 rounded focus:ring-blue-500" />
-                            <span className="text-sm font-medium text-gray-700">Módulo RH</span>
+                            <input 
+                              type="checkbox" 
+                              checked={userForm.allowed_modules.includes('operational')} 
+                              onChange={() => handleToggleModule('operational')} 
+                              className="text-blue-600 rounded focus:ring-blue-500" 
+                            />
+                            <span className="text-sm font-medium text-gray-700">Operacional</span>
                         </label>
-                        <label className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded cursor-pointer hover:bg-blue-50 transition-colors">
-                            <input type="checkbox" checked={userForm.modulos_acesso.sistema} onChange={() => handleTogglePermission('sistema')} className="text-blue-600 rounded focus:ring-blue-500" />
-                            <span className="text-sm font-medium text-gray-700">Módulo Sistema</span>
+                        
+                        <label className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded cursor-pointer hover:bg-blue-50 transition-colors col-span-2">
+                            <input 
+                              type="checkbox" 
+                              checked={userForm.allowed_modules.includes('financial')} 
+                              onChange={() => handleToggleModule('financial')} 
+                              className="text-blue-600 rounded focus:ring-blue-500" 
+                            />
+                            <span className="text-sm font-medium text-gray-700">Financeiro</span>
                         </label>
                     </div>
                  </div>
@@ -599,7 +715,7 @@ export function Settings() {
         </div>
       )}
 
-      {/* --- CONTEÚDO: MÓDULO GERAL --- */}
+      {/* --- MÓDULO GERAL --- */}
       {activeModule === 'geral' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
@@ -608,7 +724,7 @@ export function Settings() {
                         <div className="p-2 bg-gray-100 rounded-lg"><Users className="h-5 w-5 text-gray-700" /></div>
                         <div>
                             <h3 className="font-bold text-gray-900 text-base">Gestão de Usuários</h3>
-                            <p className="text-xs text-gray-500">Controle de acesso e permissões</p>
+                            <p className="text-xs text-gray-500">Controle de acesso e permissões dos módulos</p>
                         </div>
                     </div>
                     <button onClick={() => openUserModal()} disabled={!isAdmin} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg font-bold transition-colors ${isAdmin ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}><UserPlus className="h-4 w-4" /> Novo Usuário</button>
@@ -617,41 +733,46 @@ export function Settings() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase">
-                                <th className="py-2 px-2 font-semibold">Nome/Email</th>
+                                <th className="py-2 px-2 font-semibold">Email</th>
                                 <th className="py-2 px-2 font-semibold">Cargo</th>
-                                <th className="py-2 px-2 font-semibold">Acessos</th>
-                                <th className="py-2 px-2 font-semibold">Status</th>
+                                <th className="py-2 px-2 font-semibold">Módulos Permitidos</th>
                                 <th className="py-2 px-2 text-right font-semibold">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="text-sm">
                             {loadingUsers ? (
-                                <tr><td colSpan={5} className="py-4 text-center text-gray-400 text-xs">Carregando...</td></tr>
+                                <tr><td colSpan={4} className="py-4 text-center text-gray-400 text-xs">Carregando...</td></tr>
+                            ) : users.length === 0 ? (
+                                <tr><td colSpan={4} className="py-4 text-center text-gray-400 text-xs">Nenhum usuário cadastrado</td></tr>
                             ) : users.map(user => (
                                 <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50 group">
                                     <td className="py-3 px-2">
-                                        <p className="font-medium text-gray-900 text-xs">{user.nome}</p>
-                                        <p className="text-[10px] text-gray-500">{user.email}</p>
+                                        <p className="font-medium text-gray-900 text-xs">{user.email}</p>
+                                        {user.email === SUPER_ADMIN_EMAIL && (
+                                          <span className="text-[10px] text-yellow-600 font-bold">⭐ Super Admin</span>
+                                        )}
                                     </td>
                                     <td className="py-3 px-2">
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${user.cargo === 'Administrador' ? 'bg-purple-100 text-purple-700' : user.cargo === 'Sócio' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{user.cargo}</span>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                                          {user.role === 'admin' ? 'Administrador' : 'Colaborador'}
+                                        </span>
                                     </td>
                                     <td className="py-3 px-2">
-                                        <div className="flex gap-1">
-                                            {user.modulos_acesso?.crm && <span className="w-2 h-2 rounded-full bg-blue-500" title="CRM"></span>}
-                                            {user.modulos_acesso?.juridico && <span className="w-2 h-2 rounded-full bg-[#112240]" title="Jurídico"></span>}
-                                            {user.modulos_acesso?.rh && <span className="w-2 h-2 rounded-full bg-green-500" title="RH"></span>}
-                                            {user.modulos_acesso?.sistema && <span className="w-2 h-2 rounded-full bg-red-500" title="Sistema"></span>}
+                                        <div className="flex flex-wrap gap-1">
+                                            {user.allowed_modules.includes('crm') && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-medium">CRM</span>}
+                                            {user.allowed_modules.includes('collaborators') && <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-medium">RH</span>}
+                                            {user.allowed_modules.includes('family') && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-medium">Família</span>}
+                                            {user.allowed_modules.includes('operational') && <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-medium">Operacional</span>}
+                                            {user.allowed_modules.includes('financial') && <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] font-medium">Financeiro</span>}
+                                            {user.allowed_modules.length === 0 && <span className="text-[10px] text-gray-400">Nenhum módulo</span>}
                                         </div>
-                                    </td>
-                                    <td className="py-3 px-2">
-                                        {user.ativo ? <span className="inline-flex items-center gap-1 text-green-700 text-xs font-medium"><Check className="h-3 w-3" /> Ativo</span> : <span className="inline-flex items-center gap-1 text-red-600 text-xs font-medium"><Ban className="h-3 w-3" /> Bloqueado</span>}
                                     </td>
                                     <td className="py-3 px-2 text-right">
                                         <div className={`inline-flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${!isAdmin ? 'hidden' : ''}`}>
-                                            <button onClick={(e) => { e.stopPropagation(); handleToggleActive(user); }} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded" title={user.ativo ? "Bloquear" : "Ativar"}><Shield className="h-3.5 w-3.5" /></button>
                                             <button onClick={(e) => { e.stopPropagation(); openUserModal(user); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="Editar Permissões"><Pencil className="h-3.5 w-3.5" /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(user); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                            {user.email !== SUPER_ADMIN_EMAIL && (
+                                              <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(user); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -663,7 +784,7 @@ export function Settings() {
           </div>
       )}
 
-      {/* --- OUTROS MÓDULOS (CONTEÚDO) --- */}
+      {/* --- OUTROS MÓDULOS (mantém o código existente) --- */}
       {activeModule === 'juridico' && (
           <div className="animate-in fade-in">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-w-2xl">
@@ -696,7 +817,7 @@ export function Settings() {
              </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center gap-3 mb-6"><div className="p-2 bg-gray-100 rounded-lg"><FileSpreadsheet className="h-5 w-5 text-gray-700" /></div><div><h3 className="font-bold text-gray-900 text-base">Importar Dados</h3><p className="text-xs text-gray-500">Adicione clientes em massa via Excel</p></div></div>
-                <div className="space-y-4"><div className="grid grid-cols-2 gap-3"><button onClick={handleDownloadTemplate} className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-green-300 bg-green-50 rounded-lg text-green-700 hover:border-green-400 hover:bg-green-100 font-medium"><Download className="h-6 w-6" /><div className="text-center"><p className="font-bold text-xs">Baixar Modelo</p><p className="text-[10px] text-green-600">Template Excel</p></div></button><div className="relative"><input ref={fileInputRef} type="file" accept=".xlsx, .xls" onChange={handleFileUpload} disabled={loading || !isAdmin} className={`absolute inset-0 w-full h-full z-10 ${!isAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`} /><div className={`flex flex-col items-center justify-center gap-2 p-4 h-full rounded-lg ${loading || !isAdmin ? 'bg-gray-300 text-gray-500 opacity-70' : 'bg-gray-900 text-white hover:bg-gray-800'}`}>{loading ? (<><RefreshCw className="h-6 w-6 animate-spin" /><p className="font-bold text-xs">Importando...</p></>) : (<><Upload className="h-6 w-6" /><div className="text-center"><p className="font-bold text-xs">Selecionar Arquivo</p><p className="text-[10px] opacity-70">Excel (.xlsx, .xls)</p>{!isAdmin && <p className="text-[9px] mt-1 text-red-300">(Apenas Admin)</p>}</div></>)}</div></div></div></div>
+                <div className="space-y-4"><div className="grid grid-cols-2 gap-3"><button onClick={handleDownloadTemplate} className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-green-300 bg-green-50 rounded-lg text-green-700 hover:border-green-400 hover:bg-green-100 font-medium"><Download className="h-6 w-6" /><div className="text-center"><p className="font-bold text-xs">Baixar Modelo</p><p className="text-[10px] text-green-600">Template Excel</p></div></button><div className="relative"><input ref={fileInputRef} type="file" accept=".xlsx, .xls" onChange={handleFileUpload} disabled={loading || !isAdmin} className={`absolute inset-0 w-full h-full opacity-0 z-10 ${!isAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`} /><div className={`flex flex-col items-center justify-center gap-2 p-4 h-full rounded-lg ${loading || !isAdmin ? 'bg-gray-300 text-gray-500 opacity-70' : 'bg-gray-900 text-white hover:bg-gray-800'}`}>{loading ? (<><RefreshCw className="h-6 w-6 animate-spin" /><p className="font-bold text-xs">Importando...</p></>) : (<><Upload className="h-6 w-6" /><div className="text-center"><p className="font-bold text-xs">Selecionar Arquivo</p><p className="text-[10px] opacity-70">Excel (.xlsx, .xls)</p>{!isAdmin && <p className="text-[9px] mt-1 text-red-300">(Apenas Admin)</p>}</div></>)}</div></div></div></div>
             </div>
           </div>
       )}
@@ -718,7 +839,7 @@ export function Settings() {
               </div>
               <div className="space-y-6">
                 <div className="bg-white rounded-xl shadow-sm border-2 border-red-200 p-6"><div className="flex items-center gap-3 mb-6"><div className="p-2 bg-red-50 rounded-lg"><AlertTriangle className="h-5 w-5 text-red-600" /></div><div><h3 className="font-bold text-gray-900 text-base">Reset Geral do Sistema</h3><p className="text-xs text-gray-500">Ações irreversíveis</p></div></div><div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"><p className="text-xs font-bold text-red-900 mb-2">⚠️ Atenção</p><ul className="text-xs text-red-700 space-y-1"><li>• Apagará TODOS os dados do sistema</li><li>• Clientes, magistrados e tarefas serão removidos</li></ul></div><button onClick={handleSystemReset} disabled={!isAdmin} className={`w-full flex items-center justify-center gap-3 py-4 font-bold rounded-lg ${isAdmin ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}><Trash2 className="h-5 w-5" /><div className="text-left"><p>Resetar Sistema Completo</p><p className="text-xs font-normal text-red-100">{isAdmin ? 'Apagar todos os dados' : 'Apenas Administradores'}</p></div></button></div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"><div className="flex items-center gap-3 mb-6"><Code className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900 text-base">Créditos</h3></div><div className="p-4 bg-gray-50 rounded-lg border border-gray-200"><div className="flex items-center gap-2 mb-2"><Building className="h-4 w-4 text-gray-600" /><p className="font-bold text-gray-900 text-xs">Empresa</p></div><p className="font-bold text-gray-900">Flow Metrics</p><p className="text-xs text-gray-600 mt-1">Análise de Dados e Desenvolvimento</p></div><div className="mt-4 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"><div className="flex items-center gap-2"><Shield className="h-4 w-4 text-gray-600" /><span className="text-xs font-medium text-gray-600">Versão</span></div><span className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-bold">v1.8.0</span></div></div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"><div className="flex items-center gap-3 mb-6"><Code className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900 text-base">Créditos</h3></div><div className="p-4 bg-gray-50 rounded-lg border border-gray-200"><div className="flex items-center gap-2 mb-2"><Building className="h-4 w-4 text-gray-600" /><p className="font-bold text-gray-900 text-xs">Empresa</p></div><p className="font-bold text-gray-900">Flow Metrics</p><p className="text-xs text-gray-600 mt-1">Análise de Dados e Desenvolvimento</p></div><div className="mt-4 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"><div className="flex items-center gap-2"><Shield className="h-4 w-4 text-gray-600" /><span className="text-xs font-medium text-gray-600">Versão</span></div><span className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-bold">v2.6.0</span></div></div>
               </div>
           </div>
       )}
