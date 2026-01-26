@@ -40,15 +40,15 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
             }
           } else {
             // Fallback se não tiver perfil criado ainda
-            console.warn('Perfil de usuário não encontrado. Criando acesso básico ao CRM.')
-            setAllowedModules(['crm'])
+            console.warn('Perfil de usuário não encontrado.')
+            setAllowedModules([])
             setIsAdmin(false)
           }
         }
       } catch (error) {
         console.error('Erro ao buscar permissões:', error)
-        // Em caso de erro, libera apenas CRM por segurança
-        setAllowedModules(['crm'])
+        // Em caso de erro, não libera nenhum módulo
+        setAllowedModules([])
         setIsAdmin(false)
       } finally {
         setLoading(false)
@@ -60,9 +60,17 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
   
   // 2. Função de Logout aprimorada
   const handleLogout = async () => {
+    // ✅ SALVAR o flag do modal de boas-vindas antes de limpar
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcomeModal')
+    
     // Limpa storage local para esquecer estados anteriores
     localStorage.clear()
     sessionStorage.clear()
+    
+    // ✅ RESTAURAR o flag do modal depois de limpar
+    if (hasSeenWelcome) {
+      localStorage.setItem('hasSeenWelcomeModal', hasSeenWelcome)
+    }
     
     // Desloga do Supabase
     await supabase.auth.signOut()
