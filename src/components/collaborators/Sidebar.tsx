@@ -13,7 +13,7 @@ import {
   RefreshCw,
   Briefcase,
   Banknote,
-  Scale
+  Megaphone // Alterado de Scale para Megaphone
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
@@ -97,7 +97,7 @@ export function Sidebar({ activePage, onNavigate, isOpen, onClose }: SidebarProp
     { id: 'turnover', label: 'Turnover', icon: RefreshCw },
     { id: 'vagas', label: 'Vagas', icon: Briefcase },
     { id: 'remuneracao', label: 'Remuneração', icon: Banknote },
-    { id: 'acoes', label: 'Ações', icon: Scale },
+    { id: 'acoes', label: 'Ações', icon: Megaphone }, // Ícone atualizado
     
     { id: 'kanban', label: 'Kanban', icon: KanbanSquare },
   ]

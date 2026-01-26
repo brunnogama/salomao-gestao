@@ -36,13 +36,13 @@ import {
   Settings as SettingsIcon,
   Truck,
   MapPin,
-  TrendingUp, // Adicionado
-  Clock,      // Adicionado
-  BarChart3,  // Adicionado
-  RefreshCw,  // Adicionado
-  Briefcase,  // Adicionado
-  Banknote,   // Adicionado
-  Scale       // Adicionado
+  TrendingUp, 
+  Clock,      
+  BarChart3,  
+  RefreshCw,  
+  Briefcase,  
+  Banknote,   
+  Megaphone // Alterado de Scale para Megaphone
 } from 'lucide-react'
 
 export default function App() {
@@ -101,7 +101,7 @@ export default function App() {
     turnover: RefreshCw,
     vagas: Briefcase,
     remuneracao: Banknote,
-    acoes: Scale,
+    acoes: Megaphone, // Ícone atualizado
     kanban: KanbanSquare,
     historico: HistoryIcon
   }
@@ -116,7 +116,7 @@ export default function App() {
     turnover: 'Turnover',
     vagas: 'Vagas',
     remuneracao: 'Remuneração',
-    acoes: 'Ações Trabalhistas',
+    acoes: 'Ações Internas & Marketing', // Título atualizado
     kanban: 'Kanban RH',
     historico: 'Histórico'
   }
@@ -131,7 +131,7 @@ export default function App() {
     turnover: 'Índices de rotatividade de pessoal.',
     vagas: 'Gestão de processos seletivos abertos.',
     remuneracao: 'Gestão salarial e benefícios.',
-    acoes: 'Acompanhamento jurídico trabalhista.',
+    acoes: 'Gestão de endomarketing, eventos e campanhas.', // Descrição atualizada
     kanban: 'Fluxo de contratações e tarefas de RH.',
     historico: 'Registro de atividades do setor.'
   }
@@ -313,7 +313,7 @@ export default function App() {
                       {activePage === 'turnover' && <UnderConstruction moduleName="Turnover" onBack={() => setActivePage('dashboard')} />}
                       {activePage === 'vagas' && <UnderConstruction moduleName="Vagas" onBack={() => setActivePage('dashboard')} />}
                       {activePage === 'remuneracao' && <UnderConstruction moduleName="Remuneração" onBack={() => setActivePage('dashboard')} />}
-                      {activePage === 'acoes' && <UnderConstruction moduleName="Ações Trabalhistas" onBack={() => setActivePage('dashboard')} />}
+                      {activePage === 'acoes' && <UnderConstruction moduleName="Ações Internas & Marketing" onBack={() => setActivePage('dashboard')} />}
                       
                       {activePage === 'kanban' && <Kanban />}
                       {activePage === 'historico' && <History />}
