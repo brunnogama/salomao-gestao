@@ -41,6 +41,7 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
   sistema: true
 }
 
+// EMAIL DO SUPER ADMIN (Hardcoded para segurança total)
 const SUPER_ADMIN_EMAIL = 'marcio.gama@salomaoadv.com.br';
 
 const CHANGELOG = [
@@ -371,10 +372,6 @@ export function Settings() {
     } catch (error: any) { setStatus({ type: 'error', message: 'Erro: ' + error.message }) } 
     finally { setLoading(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
-
-  // 
-
-[Image of access control system flow chart]
 
   // --- RENDERIZAR BLOQUEIO DE ACESSO (MENSAGEM ELEGANTE) ---
   if (activeModule !== 'menu' && !currentUserPermissions[activeModule] && !isAdmin) {
