@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase } from './lib/supabase'
 import { User, Lock, ArrowRight, Loader2, LayoutGrid, Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
