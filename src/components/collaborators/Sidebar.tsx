@@ -14,7 +14,7 @@ import {
   Briefcase,
   Banknote,
   Megaphone,
-  Target // Ícone adicionado para GE
+  FolderSearch // Alterado para ícone de pasta/busca (GED)
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
@@ -101,7 +101,7 @@ export function Sidebar({ activePage, onNavigate, isOpen, onClose }: SidebarProp
     { id: 'acoes', label: 'Ações', icon: Megaphone },
     
     { id: 'kanban', label: 'Kanban', icon: KanbanSquare },
-    { id: 'ge', label: 'GE', icon: Target }, // Novo item GE após Kanban
+    { id: 'ged', label: 'GED', icon: FolderSearch }, // Corrigido para GED
   ]
 
   return (
