@@ -33,29 +33,18 @@ interface GenericItem {
   ativo?: boolean;
 }
 
-// ALTERAÇÃO 1: Permissões iniciam como FALSE para segurança (Deny by default)
 const DEFAULT_PERMISSIONS: UserPermissions = {
-  geral: false,
-  crm: false,
-  juridico: false,
-  rh: false,
-  sistema: false
+  geral: true,
+  crm: true,
+  juridico: true,
+  rh: true,
+  sistema: true
 }
 
 // EMAIL DO SUPER ADMIN (Hardcoded para segurança total)
 const SUPER_ADMIN_EMAIL = 'marcio.gama@salomaoadv.com.br';
 
 const CHANGELOG = [
-  {
-    version: '1.9.0',
-    date: '26/01/2026',
-    type: 'patch',
-    title: 'Security & Session Fixes',
-    changes: [
-      'Correção no fluxo de logout/login para resetar menu',
-      'Padrão de segurança alterado para bloqueio inicial'
-    ]
-  },
   {
     version: '1.8.0',
     date: '26/01/2026',
@@ -65,6 +54,16 @@ const CHANGELOG = [
       'Fluxo obrigatório de seleção de módulos no login',
       'Feedback visual de permissão negada',
       'Hardcode de Super Administrador implementado'
+    ]
+  },
+  {
+    version: '1.7.0',
+    date: '26/01/2026',
+    type: 'major',
+    title: 'Dashboard de Módulos',
+    changes: [
+      'Nova tela inicial de seleção de módulos',
+      'Navegação centralizada'
     ]
   }
 ]
@@ -86,7 +85,7 @@ export function Settings() {
     nome: '', 
     email: '', 
     cargo: 'Colaborador',
-    modulos_acesso: { ...DEFAULT_PERMISSIONS, geral: true } // No form de criação, sugerimos Geral como true
+    modulos_acesso: DEFAULT_PERMISSIONS
   })
 
   const [magistradosConfig, setMagistradosConfig] = useState({ pin: '', emails: '' })
@@ -97,6 +96,7 @@ export function Settings() {
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
   const [currentUserRole, setCurrentUserRole] = useState<string>('')
   const [currentUserPermissions, setCurrentUserPermissions] = useState<UserPermissions>(DEFAULT_PERMISSIONS)
+  const [sessionUserId, setSessionUserId] = useState<string>('')
   
   // Lógica de Admin: Verifica Cargo no banco OU se é o Super Admin hardcoded
   const isSuperAdmin = currentUserEmail === SUPER_ADMIN_EMAIL;
@@ -112,29 +112,39 @@ export function Settings() {
   const [newSocio, setNewSocio] = useState('')
   const [isAddingSocio, setIsAddingSocio] = useState(false)
 
+  // ✅ CORREÇÃO: Resetar para menu ao trocar de usuário
   useEffect(() => {
-    // Carregamento inicial
     fetchCurrentUserMetadata();
     fetchUsers();
     fetchMagistradosConfig();
     fetchBrindes();
     fetchSocios();
 
-    // ALTERAÇÃO 2: Listener de Auth para Resetar Menu ao Logar/Deslogar
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-            // Força o retorno ao menu de módulos
-            setActiveModule('menu');
-            // Recarrega permissões se for login
-            if (event === 'SIGNED_IN') {
-                fetchCurrentUserMetadata();
-            }
+    // Listener para detectar mudança de sessão (logout/login)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        const newUserId = session?.user?.id || ''
+        
+        // Se mudou de usuário, reseta para o menu
+        if (sessionUserId && sessionUserId !== newUserId) {
+          setActiveModule('menu')
         }
-    });
+        setSessionUserId(newUserId)
+        fetchCurrentUserMetadata()
+      } else if (event === 'SIGNED_OUT') {
+        setActiveModule('menu')
+        setSessionUserId('')
+      }
+    })
 
     return () => {
-        authListener.subscription.unsubscribe();
+      authListener?.subscription.unsubscribe()
     }
+  }, [sessionUserId])
+
+  // ✅ CORREÇÃO: Forçar menu ao carregar componente pela primeira vez
+  useEffect(() => {
+    setActiveModule('menu')
   }, [])
 
   // --- FUNÇÕES DE BRINDE ---
@@ -187,6 +197,7 @@ export function Settings() {
       const { data: { user } } = await (supabase.auth as any).getUser()
       if (user?.email) {
         setCurrentUserEmail(user.email);
+        setSessionUserId(user.id);
         
         // Se for Super Admin, força permissões totais localmente
         if (user.email === SUPER_ADMIN_EMAIL) {
@@ -194,7 +205,7 @@ export function Settings() {
             setCurrentUserPermissions({
                 geral: true, crm: true, juridico: true, rh: true, sistema: true
             });
-            return; // Retorna cedo, não precisa buscar do banco para o Super Admin
+            return;
         }
 
         const { data } = await supabase
@@ -205,7 +216,6 @@ export function Settings() {
           
         if (data) {
           setCurrentUserRole(data.cargo)
-          // Se tiver modulos_acesso, usa. Se for null, mantém o DEFAULT_PERMISSIONS (que agora é tudo false)
           if (data.modulos_acesso) {
             setCurrentUserPermissions(data.modulos_acesso)
           }
@@ -236,7 +246,7 @@ export function Settings() {
             email: u.email,
             cargo: u.cargo || 'Colaborador',
             ativo: u.ativo !== false,
-            modulos_acesso: u.modulos_acesso || { ...DEFAULT_PERMISSIONS, geral: true } // Fallback visual apenas
+            modulos_acesso: u.modulos_acesso || DEFAULT_PERMISSIONS
         })))
     }
     setLoadingUsers(false)
@@ -250,7 +260,7 @@ export function Settings() {
             nome: user.nome, 
             email: user.email, 
             cargo: user.cargo,
-            modulos_acesso: user.modulos_acesso || { ...DEFAULT_PERMISSIONS, geral: true }
+            modulos_acesso: user.modulos_acesso || DEFAULT_PERMISSIONS
         })
     } else {
         setEditingUser(null)
@@ -258,7 +268,7 @@ export function Settings() {
             nome: '', 
             email: '', 
             cargo: 'Colaborador',
-            modulos_acesso: { ...DEFAULT_PERMISSIONS, geral: true } 
+            modulos_acesso: DEFAULT_PERMISSIONS 
         })
     }
     setIsUserModalOpen(true)
@@ -392,13 +402,32 @@ export function Settings() {
     finally { setLoading(false); if (fileInputRef.current) fileInputRef.current.value = '' }
   }
 
+  // ✅ CORREÇÃO: Função para trocar módulo com verificação de permissão
+  const handleModuleChange = (newModule: 'menu' | 'geral' | 'crm' | 'juridico' | 'rh' | 'sistema') => {
+    // Se for menu ou admin, permite
+    if (newModule === 'menu' || isAdmin) {
+      setActiveModule(newModule)
+      return
+    }
+
+    // Se não for admin, verifica permissão
+    if (!currentUserPermissions[newModule]) {
+      // Força mostrar tela de bloqueio
+      setActiveModule(newModule)
+      return
+    }
+
+    // Tem permissão, pode acessar
+    setActiveModule(newModule)
+  }
+
   // --- RENDERIZAR BLOQUEIO DE ACESSO (MENSAGEM ELEGANTE) ---
   if (activeModule !== 'menu' && !currentUserPermissions[activeModule] && !isAdmin) {
       return (
           <div className="max-w-7xl mx-auto space-y-6">
                {/* HEADER DE NAVEGAÇÃO */}
               <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
-                   <button onClick={() => setActiveModule('menu')} className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"><LayoutGrid className="h-4 w-4" /> Menu</button>
+                   <button onClick={() => handleModuleChange('menu')} className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"><LayoutGrid className="h-4 w-4" /> Menu</button>
               </div>
 
               {/* TELA DE BLOQUEIO */}
@@ -417,7 +446,7 @@ export function Settings() {
                           Por favor, contacte o administrador do sistema.
                       </span>
                   </p>
-                  <button onClick={() => setActiveModule('menu')} className="px-6 py-2 bg-gray-900 text-white rounded-lg font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 flex items-center gap-2">
+                  <button onClick={() => handleModuleChange('menu')} className="px-6 py-2 bg-gray-900 text-white rounded-lg font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 flex items-center gap-2">
                       <LayoutGrid className="h-4 w-4" /> Voltar para o Menu
                   </button>
               </div>
@@ -453,8 +482,7 @@ export function Settings() {
                       return (
                           <button 
                               key={m.id}
-                              // IMPORTANTE: Permitimos o clique mesmo sem acesso para mostrar a mensagem "Elegante" de bloqueio
-                              onClick={() => setActiveModule(m.id as any)}
+                              onClick={() => handleModuleChange(m.id as any)}
                               className={`relative group flex flex-col items-start p-6 rounded-2xl border transition-all duration-300 text-left ${hasAccess ? 'bg-white border-gray-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer' : 'bg-gray-50 border-gray-200 opacity-80 cursor-pointer hover:bg-gray-100'}`}
                           >
                               <div className={`p-3 rounded-xl mb-4 text-white shadow-md ${hasAccess ? m.color : 'bg-gray-400 grayscale'}`}>
@@ -486,13 +514,13 @@ export function Settings() {
       
       {/* SELETOR DE MÓDULOS (NAVBAR - Para navegação rápida) */}
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
-          <button onClick={() => setActiveModule('menu')} className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors mr-2"><LayoutGrid className="h-4 w-4" /> Menu</button>
+          <button onClick={() => handleModuleChange('menu')} className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors mr-2"><LayoutGrid className="h-4 w-4" /> Menu</button>
           
-          <button onClick={() => setActiveModule('geral')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'geral' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}><Shield className="h-4 w-4" /> Geral</button>
-          <button onClick={() => setActiveModule('crm')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'crm' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-blue-50'}`}><Briefcase className="h-4 w-4" /> CRM</button>
-          <button onClick={() => setActiveModule('juridico')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'juridico' ? 'bg-[#112240] text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}><Lock className="h-4 w-4" /> Jurídico</button>
-          <button onClick={() => setActiveModule('rh')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'rh' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50'}`}><Users className="h-4 w-4" /> RH</button>
-          <button onClick={() => setActiveModule('sistema')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'sistema' ? 'bg-red-600 text-white' : 'bg-white text-gray-600 hover:bg-red-50'}`}><Code className="h-4 w-4" /> Sistema</button>
+          <button onClick={() => handleModuleChange('geral')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'geral' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}><Shield className="h-4 w-4" /> Geral</button>
+          <button onClick={() => handleModuleChange('crm')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'crm' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-blue-50'}`}><Briefcase className="h-4 w-4" /> CRM</button>
+          <button onClick={() => handleModuleChange('juridico')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'juridico' ? 'bg-[#112240] text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}><Lock className="h-4 w-4" /> Jurídico</button>
+          <button onClick={() => handleModuleChange('rh')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'rh' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50'}`}><Users className="h-4 w-4" /> RH</button>
+          <button onClick={() => handleModuleChange('sistema')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${activeModule === 'sistema' ? 'bg-red-600 text-white' : 'bg-white text-gray-600 hover:bg-red-50'}`}><Code className="h-4 w-4" /> Sistema</button>
       </div>
       
       {/* MODAL USUÁRIO COM PERMISSÕES */}
@@ -690,7 +718,7 @@ export function Settings() {
               </div>
               <div className="space-y-6">
                 <div className="bg-white rounded-xl shadow-sm border-2 border-red-200 p-6"><div className="flex items-center gap-3 mb-6"><div className="p-2 bg-red-50 rounded-lg"><AlertTriangle className="h-5 w-5 text-red-600" /></div><div><h3 className="font-bold text-gray-900 text-base">Reset Geral do Sistema</h3><p className="text-xs text-gray-500">Ações irreversíveis</p></div></div><div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"><p className="text-xs font-bold text-red-900 mb-2">⚠️ Atenção</p><ul className="text-xs text-red-700 space-y-1"><li>• Apagará TODOS os dados do sistema</li><li>• Clientes, magistrados e tarefas serão removidos</li></ul></div><button onClick={handleSystemReset} disabled={!isAdmin} className={`w-full flex items-center justify-center gap-3 py-4 font-bold rounded-lg ${isAdmin ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}><Trash2 className="h-5 w-5" /><div className="text-left"><p>Resetar Sistema Completo</p><p className="text-xs font-normal text-red-100">{isAdmin ? 'Apagar todos os dados' : 'Apenas Administradores'}</p></div></button></div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"><div className="flex items-center gap-3 mb-6"><Code className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900 text-base">Créditos</h3></div><div className="p-4 bg-gray-50 rounded-lg border border-gray-200"><div className="flex items-center gap-2 mb-2"><Building className="h-4 w-4 text-gray-600" /><p className="font-bold text-gray-900 text-xs">Empresa</p></div><p className="font-bold text-gray-900">Flow Metrics</p><p className="text-xs text-gray-600 mt-1">Análise de Dados e Desenvolvimento</p></div><div className="mt-4 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"><div className="flex items-center gap-2"><Shield className="h-4 w-4 text-gray-600" /><span className="text-xs font-medium text-gray-600">Versão</span></div><span className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-bold">v1.9.0</span></div></div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"><div className="flex items-center gap-3 mb-6"><Code className="h-5 w-5 text-gray-700" /><h3 className="font-bold text-gray-900 text-base">Créditos</h3></div><div className="p-4 bg-gray-50 rounded-lg border border-gray-200"><div className="flex items-center gap-2 mb-2"><Building className="h-4 w-4 text-gray-600" /><p className="font-bold text-gray-900 text-xs">Empresa</p></div><p className="font-bold text-gray-900">Flow Metrics</p><p className="text-xs text-gray-600 mt-1">Análise de Dados e Desenvolvimento</p></div><div className="mt-4 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"><div className="flex items-center gap-2"><Shield className="h-4 w-4 text-gray-600" /><span className="text-xs font-medium text-gray-600">Versão</span></div><span className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-bold">v1.8.0</span></div></div>
               </div>
           </div>
       )}
