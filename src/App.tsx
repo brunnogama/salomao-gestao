@@ -43,7 +43,8 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [loggingOut, setLoggingOut] = useState(false)
   
-  const [currentModule, setCurrentModule] = useState<'home' | 'crm' | 'family' | 'collaborators' | 'financial'>('home')
+  // Atualizado para incluir 'operational'
+  const [currentModule, setCurrentModule] = useState<'home' | 'crm' | 'family' | 'collaborators' | 'financial' | 'operational'>('home')
   const [activePage, setActivePage] = useState('dashboard')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [clientFilters, setClientFilters] = useState<{ socio?: string; brinde?: string }>({})
@@ -134,16 +135,19 @@ export default function App() {
   const handleLogout = async () => {
     setLoggingOut(true)
     try {
-      const hasSeenWelcome = localStorage.getItem('hasSeenWelcomeModal')
-      const clientsViewType = localStorage.getItem('clientsViewType')
+      // Limpeza agressiva para garantir que nenhum dado do usuário anterior persista
       localStorage.clear()
-      if (hasSeenWelcome) localStorage.setItem('hasSeenWelcomeModal', hasSeenWelcome)
-      if (clientsViewType) localStorage.setItem('clientsViewType', clientsViewType)
+      sessionStorage.clear()
+      
       await supabase.auth.signOut()
       setSession(null)
+      
+      // Recarrega a página para limpar qualquer estado em memória
+      window.location.reload()
     } catch (error) {
       console.error("Erro ao deslogar:", error)
       setSession(null)
+      window.location.reload()
     } finally {
       setLoggingOut(false)
     }
@@ -154,7 +158,7 @@ export default function App() {
     setActivePage(page)
   }
 
-  const handleModuleSelect = (module: 'crm' | 'family' | 'collaborators' | 'financial') => {
+  const handleModuleSelect = (module: 'crm' | 'family' | 'collaborators' | 'financial' | 'operational') => {
     setCurrentModule(module)
     setActivePage('dashboard') // Reseta para a dashboard ao trocar de módulo
   }
@@ -167,8 +171,11 @@ export default function App() {
 
   // Lógica de Roteamento de Módulos
   if (currentModule === 'home') return <ModuleSelector onSelect={handleModuleSelect} userName={getUserDisplayName()} />
+  
+  // Roteamento para módulos em construção
   if (currentModule === 'family') return <UnderConstruction moduleName="Gestão da Família" onBack={() => setCurrentModule('home')} />
   if (currentModule === 'financial') return <UnderConstruction moduleName="Financeiro" onBack={() => setCurrentModule('home')} />
+  if (currentModule === 'operational') return <UnderConstruction moduleName="Operacional" onBack={() => setCurrentModule('home')} />
 
   return (
     <>

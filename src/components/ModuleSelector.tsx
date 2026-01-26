@@ -1,4 +1,5 @@
-import { Gift, UserCog, Home, LogOut, Banknote, Package } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Gift, UserCog, Home, LogOut, Banknote, Package, Lock, Loader2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface ModuleSelectorProps {
@@ -7,10 +8,105 @@ interface ModuleSelectorProps {
 }
 
 export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
+  const [allowedModules, setAllowedModules] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // 1. Busca permissões do usuário ao carregar
+  useEffect(() => {
+    async function fetchPermissions() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (user) {
+          const { data, error } = await supabase
+            .from('user_profiles')
+            .select('allowed_modules, role')
+            .eq('user_id', user.id)
+            .single()
+
+          if (data && !error) {
+            setAllowedModules(data.allowed_modules || [])
+            setIsAdmin(data.role === 'admin')
+          } else {
+             // Fallback se não tiver perfil criado ainda: libera apenas CRM
+             setAllowedModules(['crm'])
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar permissões:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPermissions()
+  }, [])
   
+  // 2. Função de Logout aprimorada (Requirement 3)
   const handleLogout = async () => {
+    // Limpa storage local para esquecer estados anteriores
+    localStorage.clear()
+    sessionStorage.clear()
+    
+    // Desloga do Supabase
     await supabase.auth.signOut()
+    
+    // Recarrega a página para limpar estados de memória do React
     window.location.reload()
+  }
+
+  // Verifica se o módulo está liberado
+  const isModuleAllowed = (moduleKey: string) => {
+    if (isAdmin) return true // Admin acessa tudo
+    return allowedModules.includes(moduleKey)
+  }
+
+  const renderCard = (
+    key: 'crm' | 'family' | 'collaborators' | 'operational' | 'financial',
+    title: string,
+    description: string,
+    Icon: any,
+    colorClass: string,
+    bgClass: string
+  ) => {
+    const allowed = isModuleAllowed(key)
+
+    return (
+      <div 
+        onClick={() => allowed && onSelect(key)}
+        className={`relative p-8 rounded-2xl border transition-all h-64 flex flex-col items-center text-center justify-center group
+          ${allowed 
+            ? `bg-white shadow-sm border-gray-200 hover:shadow-xl hover:-translate-y-1 cursor-pointer hover:border-${colorClass}-200` 
+            : 'bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed grayscale'
+          }
+        `}
+      >
+        {!allowed && (
+          <div className="absolute top-4 right-4 text-gray-400">
+            <Lock className="h-5 w-5" />
+          </div>
+        )}
+
+        <div className={`p-4 rounded-full mb-6 transition-transform ${allowed ? `${bgClass} ${colorClass} group-hover:scale-110` : 'bg-gray-200 text-gray-500'}`}>
+          <Icon className="h-10 w-10" />
+        </div>
+        <h2 className="text-xl font-bold text-[#112240] mb-2">{title}</h2>
+        <p className="text-sm text-gray-500">{description}</p>
+        
+        {!allowed && (
+          <span className="mt-2 text-xs font-bold text-red-400 uppercase tracking-widest">Bloqueado</span>
+        )}
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 text-[#112240] animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -37,68 +133,53 @@ export function ModuleSelector({ onSelect, userName }: ModuleSelectorProps) {
             <p className="text-gray-500">Selecione o módulo que deseja acessar hoje.</p>
         </div>
 
-        {/* Ajustado grid para acomodar 5 itens harmonicamente em telas grandes (xl) */}
+        {/* Grid de Módulos */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8 max-w-7xl w-full">
             
-            {/* CARD CRM */}
-            <div 
-                onClick={() => onSelect('crm')}
-                className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-blue-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
-            >
-                <div className="p-4 bg-blue-50 text-blue-700 rounded-full mb-6 group-hover:scale-110 transition-transform">
-                    <Gift className="h-10 w-10" />
-                </div>
-                <h2 className="text-xl font-bold text-[#112240] mb-2">Brindes de Clientes</h2>
-                <p className="text-sm text-gray-500">Gestão de clientes e controle de brindes de final de ano.</p>
-            </div>
+            {renderCard(
+              'crm', 
+              'Brindes de Clientes', 
+              'Gestão de clientes e controle de brindes de final de ano.', 
+              Gift, 
+              'text-blue-700', 
+              'bg-blue-50'
+            )}
 
-            {/* CARD FAMÍLIA */}
-            <div 
-                onClick={() => onSelect('family')}
-                className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-purple-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
-            >
-                <div className="p-4 bg-purple-50 text-purple-700 rounded-full mb-6 group-hover:scale-110 transition-transform">
-                    <Home className="h-10 w-10" />
-                </div>
-                <h2 className="text-xl font-bold text-[#112240] mb-2">Gestão da Família</h2>
-                <p className="text-sm text-gray-500">Administração patrimonial e familiar.</p>
-            </div>
+            {renderCard(
+              'family', 
+              'Gestão da Família', 
+              'Administração patrimonial e familiar.', 
+              Home, 
+              'text-purple-700', 
+              'bg-purple-50'
+            )}
 
-            {/* CARD RECURSOS HUMANOS */}
-            <div 
-                onClick={() => onSelect('collaborators')}
-                className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-green-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
-            >
-                <div className="p-4 bg-green-50 text-green-700 rounded-full mb-6 group-hover:scale-110 transition-transform">
-                    <UserCog className="h-10 w-10" />
-                </div>
-                <h2 className="text-xl font-bold text-[#112240] mb-2">Recursos Humanos</h2>
-                <p className="text-sm text-gray-500">Gestão estratégica de pessoas, benefícios e departamento pessoal.</p>
-            </div>
+            {renderCard(
+              'collaborators', 
+              'Recursos Humanos', 
+              'Gestão estratégica de pessoas, benefícios e DP.', 
+              UserCog, 
+              'text-green-700', 
+              'bg-green-50'
+            )}
 
-            {/* CARD OPERACIONAL (NOVO) */}
-            <div 
-                onClick={() => onSelect('operational')}
-                className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-orange-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
-            >
-                <div className="p-4 bg-orange-50 text-orange-700 rounded-full mb-6 group-hover:scale-110 transition-transform">
-                    <Package className="h-10 w-10" />
-                </div>
-                <h2 className="text-xl font-bold text-[#112240] mb-2">Operacional</h2>
-                <p className="text-sm text-gray-500">Gestão de insumos, papelaria e operacional do escritório.</p>
-            </div>
+            {renderCard(
+              'operational', 
+              'Operacional', 
+              'Gestão de insumos, papelaria e operacional do escritório.', 
+              Package, 
+              'text-orange-700', 
+              'bg-orange-50'
+            )}
 
-            {/* CARD FINANCEIRO */}
-            <div 
-                onClick={() => onSelect('financial')}
-                className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 hover:shadow-xl hover:-translate-y-1 hover:border-emerald-200 transition-all cursor-pointer group flex flex-col items-center text-center h-64 justify-center"
-            >
-                <div className="p-4 bg-emerald-50 text-emerald-700 rounded-full mb-6 group-hover:scale-110 transition-transform">
-                    <Banknote className="h-10 w-10" />
-                </div>
-                <h2 className="text-xl font-bold text-[#112240] mb-2">Financeiro</h2>
-                <p className="text-sm text-gray-500">Controle de notas fiscais, emissão, boletos etc.</p>
-            </div>
+            {renderCard(
+              'financial', 
+              'Financeiro', 
+              'Controle de notas fiscais, emissão, boletos etc.', 
+              Banknote, 
+              'text-emerald-700', 
+              'bg-emerald-50'
+            )}
 
         </div>
       </main>
