@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { 
   Upload, FileSpreadsheet, RefreshCw, Download,
   BarChart3, Users, Briefcase, FileText,
-  Pencil, Plus, X, Search, Eraser
+  Pencil, Plus, X, Search, Eraser, Mail
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../../lib/supabase'
