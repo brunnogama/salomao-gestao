@@ -4,11 +4,12 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { 
   Upload, FileSpreadsheet, RefreshCw, Download,
   BarChart3, Users, Briefcase, FileText,
-  Pencil, Plus, X, Search, Filter as FilterIcon, Mail, Eraser, ChevronDown
+  Pencil, Plus, X, Search, Eraser
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../../lib/supabase'
 import html2canvas from 'html2canvas'
+import { SearchableSelect } from '../../components/SearchableSelect'
 
 // --- TIPOS ---
 interface PresenceRecord {
@@ -55,12 +56,12 @@ export function Presencial() {
   const presenceInputRef = useRef<HTMLInputElement>(null)
   const socioInputRef = useRef<HTMLInputElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const reportRef = useRef<HTMLDivElement>(null) // Ref para o print
+  const reportRef = useRef<HTMLDivElement>(null)
 
   // --- NAVEGAÇÃO ---
   const [viewMode, setViewMode] = useState<'report' | 'descriptive' | 'socios'>('report')
    
-  // --- NOVO FILTRO DE PERÍODO ---
+  // --- FILTRO DE PERÍODO ---
   const getFirstDayOfMonth = () => {
     const date = new Date();
     return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
@@ -80,7 +81,7 @@ export function Presencial() {
       return text.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ")
   }
 
-  // --- HELPER FORMATAÇÃO (CAMEL CASE / TITLE CASE) ---
+  // --- HELPER FORMATAÇÃO ---
   const toTitleCase = (text: string) => {
       if (!text) return ""
       return text
@@ -90,7 +91,7 @@ export function Presencial() {
         .join(' ');
   }
 
-  // --- 1. BUSCAR ÚLTIMA DATA PARA DEFINIR PERÍODO INICIAL ---
+  // --- BUSCAR ÚLTIMA DATA PARA DEFINIR PERÍODO INICIAL ---
   const fetchInitialPeriod = async () => {
       const { data } = await supabase
           .from('presenca_portaria')
@@ -110,7 +111,7 @@ export function Presencial() {
       setIsInitialLoad(false)
   }
 
-  // --- 2. BUSCAR DADOS ---
+  // --- BUSCAR DADOS ---
   const fetchRecords = async () => {
     if (isInitialLoad) return; 
 
@@ -187,7 +188,7 @@ export function Presencial() {
 
   const uniqueSocios = useMemo(() => {
       const socios = new Set(socioRules.map(r => toTitleCase(r.socio_responsavel)).filter(s => s !== 'Não Definido' && s !== ''))
-      return Array.from(socios).sort()
+      return Array.from(socios).sort().map(s => ({ nome: s }))
   }, [socioRules])
 
   const uniqueColaboradores = useMemo(() => {
@@ -195,7 +196,7 @@ export function Presencial() {
       if (filterSocio) {
           rules = rules.filter(r => toTitleCase(r.socio_responsavel) === filterSocio)
       }
-      return Array.from(new Set(rules.map(r => toTitleCase(r.nome_colaborador)))).sort()
+      return Array.from(new Set(rules.map(r => toTitleCase(r.nome_colaborador)))).sort().map(c => ({ nome: c }))
   }, [socioRules, filterSocio])
 
   // --- FILTRAGEM CENTRALIZADA ---
@@ -244,7 +245,7 @@ export function Presencial() {
       return { filteredRecords, filteredRules }
   }, [records, socioRules, startDate, endDate, filterSocio, filterColaborador, searchText, socioMap])
 
-  // --- 2. LÓGICA DO RELATÓRIO ---
+  // --- LÓGICA DO RELATÓRIO ---
   const reportData = useMemo(() => {
     const grouped: { [key: string]: { originalName: string, uniqueDays: Set<string>, weekDays: { [key: number]: number }, datesSet: Set<string> } } = {}
 
@@ -553,7 +554,7 @@ export function Presencial() {
   }
   const handleDeleteRule = async (id: string) => { if (!confirm("Excluir?")) return; setLoading(true); await supabase.from('socios_regras').delete().eq('id', id); fetchRecords() }
 
-  // --- AÇÃO 1: LIMPAR FILTROS ---
+  // --- LIMPAR FILTROS ---
   const clearFilters = () => {
     setFilterSocio('');
     setFilterColaborador('');
@@ -562,7 +563,7 @@ export function Presencial() {
   
   const hasActiveFilters = filterSocio !== '' || filterColaborador !== '' || searchText !== '';
 
-  // --- AÇÃO 2: ENVIAR EMAIL (SCREENSHOT) ---
+  // --- ENVIAR EMAIL ---
   const handleSendEmail = async () => {
     if (!reportRef.current || viewMode !== 'report') {
         return alert("Vá para a aba 'Relatório' para usar esta função.");
@@ -570,9 +571,8 @@ export function Presencial() {
     
     setLoading(true);
     try {
-        // Gera o canvas apenas da tabela
         const canvas = await html2canvas(reportRef.current, {
-            scale: 2, // Melhor qualidade
+            scale: 2,
             backgroundColor: '#ffffff'
         });
 
@@ -582,13 +582,11 @@ export function Presencial() {
                 return alert("Erro ao gerar imagem.");
             }
 
-            // Copia para a área de transferência
             try {
                 await navigator.clipboard.write([
                     new ClipboardItem({ 'image/png': blob })
                 ]);
                 
-                // Abre o cliente de e-mail padrão EM NOVA ABA
                 const subject = `Relatório de Presença - ${new Date().toLocaleDateString()}`;
                 const body = `Segue em anexo (colado) o relatório filtrado.\n\n(Pressione Ctrl+V para colar a imagem aqui)`;
                 
@@ -704,7 +702,7 @@ export function Presencial() {
       <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             
-            {/* 1. SELETORES DE VISUALIZAÇÃO */}
+            {/* SELETORES DE VISUALIZAÇÃO */}
             <div className="flex bg-gray-100 p-1 rounded-lg w-full md:w-auto overflow-x-auto">
                 <button onClick={() => setViewMode('report')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${viewMode === 'report' ? 'bg-white text-[#112240] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><BarChart3 className="h-4 w-4" /> Relatório</button>
                 <button onClick={() => setViewMode('descriptive')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${viewMode === 'descriptive' ? 'bg-white text-[#112240] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><FileText className="h-4 w-4" /> Descritivo</button>
@@ -723,10 +721,8 @@ export function Presencial() {
                   <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
                 </button>
 
-                {/* BOTÕES DE EXPORTAÇÃO E EMAIL */}
                 {(viewMode === 'report' || viewMode === 'descriptive') && (reportData.length > 0 || descriptiveData.length > 0) && (
                   <div className="flex gap-2">
-                    {/* BOTÃO EMAIL */}
                     {viewMode === 'report' && (
                         <button 
                             onClick={handleSendEmail} 
@@ -738,7 +734,6 @@ export function Presencial() {
                         </button>
                     )}
                     
-                    {/* BOTÃO EXCEL */}
                     <button 
                         onClick={handleExportXLSX} 
                         className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
@@ -764,7 +759,6 @@ export function Presencial() {
         <div className="flex flex-col lg:flex-row items-center justify-between border-t border-gray-100 pt-4 gap-4">
             
             <div className="hidden lg:block">
-                {/* BOTÃO LIMPAR FILTROS */}
                 {hasActiveFilters && (
                     <button 
                         onClick={clearFilters}
@@ -776,10 +770,10 @@ export function Presencial() {
                 )}
             </div>
 
-            {/* 2. ÁREA DE PESQUISA E FILTROS */}
+            {/* ÁREA DE PESQUISA E FILTROS */}
             <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
                 
-                {/* BOTÃO/CAMPO DE PESQUISA */}
+                {/* CAMPO DE PESQUISA */}
                 <div className={`flex items-center bg-gray-50 border border-gray-200 rounded-lg transition-all duration-300 ${showSearch ? 'w-full sm:w-64 px-2' : 'w-10 justify-center'}`}>
                     <button onClick={() => setShowSearch(!showSearch)} className="p-2 text-gray-400 hover:text-blue-600">
                         {showSearch ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
@@ -796,36 +790,28 @@ export function Presencial() {
                     )}
                 </div>
 
-                {/* FILTROS DROPDOWN CUSTOMIZADOS */}
+                {/* FILTROS COM SEARCHABLE SELECT */}
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                     
                     {/* Filtro Sócio */}
-                    <div className="relative w-full sm:w-48 group">
-                        <FilterIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors pointer-events-none z-10" />
-                        <select 
-                            value={filterSocio} 
-                            onChange={(e) => setFilterSocio(e.target.value)}
-                            className="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-lg pl-9 pr-8 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none shadow-sm hover:border-blue-300 transition-all cursor-pointer"
-                        >
-                            <option value="">Todos Sócios</option>
-                            {uniqueSocios.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                    </div>
+                    <SearchableSelect
+                        label=""
+                        value={filterSocio}
+                        onChange={setFilterSocio}
+                        options={uniqueSocios}
+                        placeholder="Todos Sócios"
+                        className="w-full sm:w-48"
+                    />
 
                     {/* Filtro Colaborador */}
-                    <div className="relative w-full sm:w-48 group">
-                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors pointer-events-none z-10" />
-                        <select 
-                            value={filterColaborador} 
-                            onChange={(e) => setFilterColaborador(e.target.value)}
-                            className="w-full bg-white border border-gray-200 text-gray-700 text-sm rounded-lg pl-9 pr-8 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none shadow-sm hover:border-blue-300 transition-all cursor-pointer"
-                        >
-                            <option value="">Todos Colab.</option>
-                            {uniqueColaboradores.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                    </div>
+                    <SearchableSelect
+                        label=""
+                        value={filterColaborador}
+                        onChange={setFilterColaborador}
+                        options={uniqueColaboradores}
+                        placeholder="Todos Colab."
+                        className="w-full sm:w-48"
+                    />
 
                     {/* FILTRO DE PERÍODO */}
                     {(viewMode === 'report' || viewMode === 'descriptive') && (
@@ -853,7 +839,7 @@ export function Presencial() {
                 </div>
             </div>
             
-            {/* BOTÃO LIMPAR MOBILE (visível apenas em telas pequenas) */}
+            {/* BOTÃO LIMPAR MOBILE */}
             <div className="lg:hidden w-full flex justify-end">
                  {hasActiveFilters && (
                     <button 
@@ -880,7 +866,6 @@ export function Presencial() {
                         <p className="text-sm">Importe uma planilha ou ajuste os filtros</p>
                     </div>
                 ) : (
-                    /* DIV DE ENVOLVIMENTO PARA O PRINT (REF) */
                     <div ref={reportRef} className="bg-white p-4">
                         <div className="mb-4 text-center block md:hidden">
                             <h3 className="text-lg font-bold text-[#112240]">Relatório de Presença</h3>
