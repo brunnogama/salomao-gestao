@@ -112,7 +112,7 @@ export function SearchableSelect({
 
   return (
     <div ref={dropdownRef} className={`relative ${className}`}>
-      <label className="block text-xs font-bold text-gray-700 uppercase mb-1">{label}</label>
+      {label && <label className="block text-xs font-bold text-gray-700 uppercase mb-1">{label}</label>}
       
       {/* Campo principal */}
       <button
@@ -196,7 +196,7 @@ export function SearchableSelect({
               className="w-full px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 border-t border-gray-200 flex items-center gap-2 transition-colors bg-white"
             >
               <Settings className="h-4 w-4 text-gray-600" />
-              <span>Gerenciar {label}</span>
+              <span>Gerenciar {label || 'Opções'}</span>
             </button>
           )}
         </div>
