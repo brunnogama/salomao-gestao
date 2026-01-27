@@ -340,7 +340,7 @@ export function Colaboradores() {
                 onChange={e => setFilterLider(e.target.value)}
               >
                 <option value="">Líderes</option>
-                {unicosLideres.map(l => <option key={l} value={l}>{l}</option>)}
+                {unicosLideres.map(l => <option key={l} value={l}>{toTitleCase(l)}</option>)}
               </select>
               <select 
                 className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
@@ -348,7 +348,7 @@ export function Colaboradores() {
                 onChange={e => setFilterLocal(e.target.value)}
               >
                 <option value="">Locais</option>
-                {unicosLocais.map(l => <option key={l} value={l}>{l}</option>)}
+                {unicosLocais.map(l => <option key={l} value={l}>{toTitleCase(l)}</option>)}
               </select>
             </div>
           )}
@@ -523,7 +523,7 @@ export function Colaboradores() {
               <div className="relative">
                   <select className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white appearance-none" value={formData.equipe || ''} onChange={e => setFormData({...formData, equipe: e.target.value})}>
                     <option value="">Selecione</option>
-                    {equipes.map(e => <option key={e.id} value={e.nome}>{e.nome}</option>)}
+                    {equipes.map(e => <option key={e.id} value={e.nome}>{toTitleCase(e.nome)}</option>)}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                     <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
@@ -540,7 +540,7 @@ export function Colaboradores() {
               <div className="relative">
                   <select className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white appearance-none" value={formData.local || ''} onChange={e => setFormData({...formData, local: e.target.value})}>
                     <option value="">Selecione</option>
-                    {locais.map(l => <option key={l.id} value={l.nome}>{l.nome}</option>)}
+                    {locais.map(l => <option key={l.id} value={l.nome}>{toTitleCase(l.nome)}</option>)}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                     <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
@@ -612,7 +612,7 @@ export function Colaboradores() {
               <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
                 {(isConfigModalOpen === 'equipes' ? equipes : locais).map(opt => (
                   <div key={opt.id} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors group">
-                    <span className="text-sm font-medium text-gray-700">{opt.nome}</span>
+                    <span className="text-sm font-medium text-gray-700">{toTitleCase(opt.nome)}</span>
                     <button onClick={() => handleDeleteOption(opt.id, isConfigModalOpen as any)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"><Trash2 className="h-4 w-4"/></button>
                   </div>
                 ))}
