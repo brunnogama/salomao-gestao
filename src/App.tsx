@@ -21,8 +21,8 @@ import { UnderConstruction } from './components/UnderConstruction'
 
 // Componentes do RH
 import { Presencial } from './components/collaborators/Presencial' 
-// NOVA IMPORTAÇÃO
 import { Colaboradores } from './pages/Colaboradores'
+import { Calendario } from './pages/Calendario'
 
 import { 
   Menu, 
@@ -343,7 +343,7 @@ export default function App() {
                   {currentModule === 'collaborators' && (
                     <>
                       {activePage === 'dashboard' && <UnderConstruction moduleName="Dashboard RH" onBack={() => {}} showBackButton={false} />}
-                      {activePage === 'calendario' && <UnderConstruction moduleName="Calendário" onBack={() => setActivePage('dashboard')} />}
+                      {activePage === 'calendario' && <Calendario />}
                       {activePage === 'presencial' && <Presencial />}
                       
                       {/* ROTA COLABORADORES */}
