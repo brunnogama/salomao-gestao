@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { 
   Search, Upload, Download, Plus, X, 
   MapPin, User, Briefcase, Trash2, Pencil, Save, 
-  Users, UserMinus, CheckCircle, UserX, Filter, Calendar, Building2, Camera, Image
+  Users, UserMinus, CheckCircle, UserX, Filter, Calendar, Building2, Camera, Image, Mail
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
@@ -12,6 +12,7 @@ import { SearchableSelect } from '../components/SearchableSelect'
 interface Colaborador {
   id: number;
   nome: string;
+  email?: string; // Novo campo
   genero: string;
   cep: string;
   endereco: string;
@@ -49,7 +50,7 @@ export function Colaboradores() {
   const [loading, setLoading] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'form'>('list')
   const [selectedColaborador, setSelectedColaborador] = useState<Colaborador | null>(null)
-  
+   
   // Estados de Filtro
   const [searchTerm, setSearchTerm] = useState('')
   const [filterLider, setFilterLider] = useState('')
@@ -193,7 +194,7 @@ export function Colaboradores() {
         const data = await response.json()
         if (!data.erro) {
           const estadoEncontrado = ESTADOS_BRASIL.find(e => e.sigla === data.uf)
-          
+           
           setFormData(prev => ({
             ...prev,
             endereco: toTitleCase(data.logradouro),
@@ -237,6 +238,7 @@ export function Colaboradores() {
     const payload = {
       ...formData,
       nome: toTitleCase(formData.nome || ''),
+      email: formData.email?.toLowerCase() || '',
       endereco: toTitleCase(formData.endereco || ''),
       bairro: toTitleCase(formData.bairro || ''),
       cidade: toTitleCase(formData.cidade || ''),
@@ -333,6 +335,7 @@ export function Colaboradores() {
 
         return {
           nome: toTitleCase(normalize('NOME')),
+          email: normalize('EMAIL') || normalize('E-MAIL'),
           genero: toTitleCase(normalize('GÊNERO')),
           cep: normalize('CEP'),
           endereco: toTitleCase(normalize('ENDEREÇO')),
@@ -381,7 +384,7 @@ export function Colaboradores() {
 
   // Funções de Limpeza de Filtro
   const hasActiveFilters = searchTerm !== '' || filterLider !== '' || filterLocal !== ''
-  
+   
   const clearFilters = () => {
     setSearchTerm('')
     setFilterLider('')
@@ -403,7 +406,7 @@ export function Colaboradores() {
         {Icon && <Icon className="h-3.5 w-3.5 text-gray-400" />}
         <p className="text-xs font-bold text-gray-500 uppercase">{label}</p>
       </div>
-      <p className="text-gray-900 text-sm font-medium">{value || '-'}</p>
+      <p className="text-gray-900 text-sm font-medium break-words">{value || '-'}</p>
     </div>
   )
 
@@ -480,7 +483,7 @@ export function Colaboradores() {
       {/* 2. BARRA DE FERRAMENTAS E FILTROS */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 sticky top-4 z-10">
         <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-          
+           
           {/* Busca e Filtros */}
           {viewMode === 'list' && (
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1 items-center">
@@ -570,7 +573,7 @@ export function Colaboradores() {
                           <Avatar colab={colab} size="sm" />
                           <div>
                             <p className="font-bold text-gray-900 text-sm">{toTitleCase(colab.nome)}</p>
-                            <p className="text-xs text-gray-500">{colab.cpf}</p>
+                            <p className="text-xs text-gray-500">{colab.email || colab.cpf}</p>
                           </div>
                         </div>
                       </td>
@@ -694,7 +697,7 @@ export function Colaboradores() {
                     <User className="h-4 w-4"/> Dados Pessoais
                 </h3>
             </div>
-            
+             
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Nome Completo</label>
               <input className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={formData.nome || ''} onChange={e => setFormData({...formData, nome: e.target.value})} />
@@ -719,14 +722,14 @@ export function Colaboradores() {
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data Nascimento</label>
               <input className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.data_nascimento || ''} onChange={e => setFormData({...formData, data_nascimento: maskDate(e.target.value)})} maxLength={10} placeholder="DD/MM/AAAA" />
             </div>
-            
+             
             {/* ENDEREÇO */}
             <div className="md:col-span-3 bg-gray-50 p-3 rounded-lg border border-gray-100 mt-2">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                     <MapPin className="h-4 w-4"/> Endereço
                 </h3>
             </div>
-            
+             
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">CEP</label>
               <input className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.cep || ''} onChange={e => setFormData({...formData, cep: maskCEP(e.target.value)})} onBlur={handleCepBlur} maxLength={9} />
@@ -761,6 +764,12 @@ export function Colaboradores() {
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                     <Briefcase className="h-4 w-4"/> Dados Corporativos
                 </h3>
+            </div>
+
+            {/* CAMPO EMAIL ADICIONADO AQUI */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">E-mail Corporativo</label>
+              <input type="email" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="exemplo@empresa.com.br" />
             </div>
 
             {/* EQUIPE - COM SEARCHABLE SELECT */}
@@ -922,6 +931,10 @@ export function Colaboradores() {
                   <Briefcase className="h-4 w-4" /> Dados Corporativos
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {/* EMAIL NO DETALHE */}
+                  <div className="md:col-span-2">
+                    <DetailItem label="E-mail" value={selectedColaborador.email} icon={Mail} />
+                  </div>
                   <DetailItem label="Equipe" value={selectedColaborador.equipe} />
                   <DetailItem label="Local" value={selectedColaborador.local} icon={Building2} />
                   <DetailItem label="Líder" value={selectedColaborador.lider_equipe} />
