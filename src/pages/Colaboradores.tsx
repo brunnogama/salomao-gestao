@@ -250,7 +250,7 @@ export function Colaboradores() {
   const unicosLideres = Array.from(new Set(colaboradores.map(c => c.lider_equipe).filter(Boolean))).sort()
   const unicosLocais = Array.from(new Set(colaboradores.map(c => c.local).filter(Boolean))).sort()
 
-  // KPIs - CORRIGIDO para case-insensitive
+  // KPIs
   const totalAtivos = colaboradores.filter(c => c.status?.toLowerCase() === 'ativo').length
   const totalDesligados = colaboradores.filter(c => c.status?.toLowerCase() === 'desligado').length
   const totalInativos = colaboradores.filter(c => c.status?.toLowerCase() === 'inativo').length
@@ -306,8 +306,8 @@ export function Colaboradores() {
           
           {/* Busca e Filtros */}
           {viewMode === 'list' && (
-            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1">
-              <div className="relative flex-1 min-w-[280px]">
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1 items-center">
+              <div className="relative flex-1 min-w-[280px] w-full">
                 <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
                 <input 
                   type="text" 
@@ -317,22 +317,24 @@ export function Colaboradores() {
                   onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
-              <select 
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                value={filterLider}
-                onChange={e => setFilterLider(e.target.value)}
-              >
-                <option value="">Líderes</option>
-                {unicosLideres.map(l => <option key={l} value={l}>{toTitleCase(l)}</option>)}
-              </select>
-              <select 
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                value={filterLocal}
-                onChange={e => setFilterLocal(e.target.value)}
-              >
-                <option value="">Locais</option>
-                {unicosLocais.map(l => <option key={l} value={l}>{toTitleCase(l)}</option>)}
-              </select>
+              
+              <div className="w-full sm:w-48">
+                <SearchableSelect 
+                   placeholder="Líderes"
+                   value={filterLider}
+                   onChange={setFilterLider}
+                   options={unicosLideres.map(l => ({ name: toTitleCase(l) }))}
+                />
+              </div>
+
+              <div className="w-full sm:w-48">
+                <SearchableSelect 
+                   placeholder="Locais"
+                   value={filterLocal}
+                   onChange={setFilterLocal}
+                   options={unicosLocais.map(l => ({ name: toTitleCase(l) }))}
+                />
+              </div>
             </div>
           )}
 
@@ -442,13 +444,16 @@ export function Colaboradores() {
               <input className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={formData.nome || ''} onChange={e => setFormData({...formData, nome: e.target.value})} />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Gênero</label>
-              <select className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.genero || ''} onChange={e => setFormData({...formData, genero: e.target.value})}>
-                <option value="">Selecione</option>
-                <option value="Masculino">Masculino</option>
-                <option value="Feminino">Feminino</option>
-                <option value="Outro">Outro</option>
-              </select>
+              <SearchableSelect 
+                label="Gênero"
+                value={formData.genero || ''}
+                onChange={(val) => setFormData({...formData, genero: val})}
+                options={[
+                  { name: 'Masculino' },
+                  { name: 'Feminino' },
+                  { name: 'Outro' }
+                ]}
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">CPF</label>
@@ -487,10 +492,12 @@ export function Colaboradores() {
               <input className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.cidade || ''} onChange={e => setFormData({...formData, cidade: e.target.value})} />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Estado</label>
-              <select className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.estado || ''} onChange={e => setFormData({...formData, estado: e.target.value})}>
-                {ESTADOS_BRASIL.map(est => <option key={est.sigla} value={est.nome}>{est.nome}</option>)}
-              </select>
+              <SearchableSelect 
+                label="Estado"
+                value={formData.estado || ''}
+                onChange={(val) => setFormData({...formData, estado: val})}
+                options={ESTADOS_BRASIL.map(est => ({ name: est.nome }))}
+              />
             </div>
 
             {/* DADOS DA EMPRESA */}
@@ -501,7 +508,7 @@ export function Colaboradores() {
             </div>
 
             {/* EQUIPE - COM SEARCHABLE SELECT */}
-            <SearchableSelect
+            <SearchableSelect 
               key={`equipe-${refreshKey}`}
               label="Equipe"
               value={formData.equipe || ''}
@@ -513,7 +520,7 @@ export function Colaboradores() {
             />
 
             {/* LOCAL - COM SEARCHABLE SELECT */}
-            <SearchableSelect
+            <SearchableSelect 
               key={`local-${refreshKey}`}
               label="Local"
               value={formData.local || ''}
@@ -537,12 +544,16 @@ export function Colaboradores() {
               <input className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.tipo || ''} onChange={e => setFormData({...formData, tipo: e.target.value})} />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Status</label>
-              <select className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.status || 'Ativo'} onChange={e => setFormData({...formData, status: e.target.value})}>
-                <option value="Ativo">Ativo</option>
-                <option value="Desligado">Desligado</option>
-                <option value="Inativo">Inativo</option>
-              </select>
+              <SearchableSelect 
+                label="Status"
+                value={formData.status || 'Ativo'}
+                onChange={(val) => setFormData({...formData, status: val})}
+                options={[
+                  { name: 'Ativo' },
+                  { name: 'Desligado' },
+                  { name: 'Inativo' }
+                ]}
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data Admissão</label>

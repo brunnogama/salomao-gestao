@@ -11,7 +11,7 @@ interface Option {
 }
 
 interface SearchableSelectProps {
-  label: string;
+  label?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -57,7 +57,7 @@ export function SearchableSelect({
     } else {
       setOptions(externalOptions);
     }
-  }, [table, externalOptions]);
+  }, [table, externalOptions, isOpen]); // Recarrega ao abrir para garantir dados frescos
 
   const fetchOptions = async () => {
     if (!table) return;
@@ -71,6 +71,7 @@ export function SearchableSelect({
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setSearchTerm('');
+        setIsManaging(false); // Fecha modo de gerenciamento também
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -104,7 +105,8 @@ export function SearchableSelect({
   };
 
   const handleDeleteOption = async (id: number) => {
-    if (!confirm('Deseja excluir este item?') || !table) return;
+    if (!confirm('Deseja excluir este item?')) return;
+    if (!table) return;
     await supabase.from(table).delete().eq('id', id);
     await fetchOptions();
     if (onRefresh) onRefresh();
@@ -122,7 +124,7 @@ export function SearchableSelect({
         className={`w-full border border-gray-300 rounded-lg p-2.5 text-left focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all hover:border-blue-400 flex items-center justify-between ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         <span className={value ? "text-gray-900 text-sm" : "text-gray-400 text-sm"}>
-          {selectedOption ? toTitleCase(getName(selectedOption)) : placeholder}
+          {selectedOption ? toTitleCase(getName(selectedOption)) : (value || placeholder)}
         </span>
         <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -147,7 +149,7 @@ export function SearchableSelect({
           </div>
 
           {/* Lista de opções */}
-          <div className="max-h-48 overflow-y-auto">
+          <div className="max-h-48 overflow-y-auto custom-scrollbar">
             <button
               type="button"
               onClick={() => {
@@ -155,13 +157,13 @@ export function SearchableSelect({
                 setIsOpen(false);
                 setSearchTerm('');
               }}
-              className="w-full px-4 py-2.5 text-left text-sm text-gray-400 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              className="w-full px-4 py-2.5 text-left text-sm text-gray-400 hover:bg-gray-50 transition-colors border-b border-gray-100 italic"
             >
-              Selecione
+              Limpar seleção
             </button>
-            {filteredOptions.map(opt => (
+            {filteredOptions.map((opt, idx) => (
               <button
-                key={getId(opt)}
+                key={getId(opt) || idx}
                 type="button"
                 onClick={() => {
                   onChange(getName(opt));
@@ -249,7 +251,7 @@ export function SearchableSelect({
               </div>
 
               {/* Lista de itens */}
-              <div className="max-h-72 overflow-y-auto space-y-1">
+              <div className="max-h-72 overflow-y-auto space-y-1 custom-scrollbar">
                 {options.map(opt => (
                   <div 
                     key={getId(opt)} 
