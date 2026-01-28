@@ -15,10 +15,10 @@ interface SearchableSelectProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  table?: string;
-  nameField?: string;
-  options?: Option[];
-  onRefresh?: () => void;
+  table?: string; // Nome da tabela no Supabase para gerenciar opções
+  nameField?: string; // Campo do nome na tabela (padrão: 'nome')
+  options?: Option[]; // Opções estáticas (se não usar tabela)
+  onRefresh?: () => void; // Callback para atualizar lista após mudanças
   disabled?: boolean;
   className?: string;
 }
@@ -41,10 +41,12 @@ export function SearchableSelect({
   const [options, setOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
   
+  // Estados para gerenciamento (Add/Edit)
   const [newOptionValue, setNewOptionValue] = useState('');
   const [editingOption, setEditingOption] = useState<{ id: number; name: string } | null>(null);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const managingRef = useRef<HTMLDivElement>(null); // Ref para o modal de gerenciamento
 
   const toTitleCase = (str: string) => {
     if (!str) return '';
@@ -53,13 +55,16 @@ export function SearchableSelect({
     }).join(' ');
   };
 
+  // Carrega opções
   useEffect(() => {
     if (table) {
-      fetchOptions();
+      if (isOpen) { // Só busca se estiver aberto para economizar recursos e evitar loops
+          fetchOptions();
+      }
     } else {
       setOptions(externalOptions);
     }
-  }, [table, externalOptions, isOpen]); 
+  }, [table, isOpen]); // Dependências controladas
 
   const fetchOptions = async () => {
     if (!table) return;
@@ -69,19 +74,26 @@ export function SearchableSelect({
     setLoading(false);
   };
 
-  // CORREÇÃO AQUI: Impede o fechamento se estiver no modo de gerenciamento
+  // Fecha dropdown ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (isManaging) return; // Não fecha se estiver gerenciando
-      
+      // Se estiver gerenciando, verifica se clicou dentro do modal de gerenciamento
+      if (isManaging && managingRef.current && managingRef.current.contains(event.target as Node)) {
+        return; 
+      }
+
+      // Se clicou fora do dropdown e não está no modal de gerenciamento
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setSearchTerm('');
+        // Se estiver gerenciando, não fecha o dropdown principal ainda, apenas se não for clique no modal
+        if (!isManaging) {
+            setIsOpen(false);
+            setSearchTerm('');
+        }
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isManaging]); // Adicionado isManaging na dependência
+  }, [isManaging]);
 
   const getName = (opt: Option) => opt.nome || opt.name || opt.label || '';
   const getId = (opt: Option) => opt.id || 0;
@@ -92,6 +104,7 @@ export function SearchableSelect({
 
   const selectedOption = options.find(opt => getName(opt).toLowerCase() === value.toLowerCase());
 
+  // --- CRUD OPÇÕES ---
   const handleAddOption = async () => {
     if (!newOptionValue.trim() || !table) return;
     const val = toTitleCase(newOptionValue.trim());
@@ -145,6 +158,7 @@ export function SearchableSelect({
     <div ref={dropdownRef} className={`relative ${className}`}>
       {label && <label className="block text-xs font-bold text-gray-700 uppercase mb-1">{label}</label>}
       
+      {/* TRIGGER DO DROPDOWN */}
       <div 
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`
@@ -171,6 +185,7 @@ export function SearchableSelect({
         </div>
       </div>
 
+      {/* DROPDOWN MENU */}
       {isOpen && !isManaging && (
         <div className="absolute left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-[9999]">
           
@@ -243,12 +258,14 @@ export function SearchableSelect({
         </div>
       )}
 
+      {/* MODAL DE GERENCIAMENTO (Add/Edit/Delete) */}
       {isManaging && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={() => setIsManaging(false)}
         >
           <div 
+            ref={managingRef} // REF AQUI para controlar cliques
             className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
