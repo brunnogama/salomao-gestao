@@ -173,14 +173,14 @@ export function Colaboradores() {
       data_desligamento: toFormDate(colab.data_desligamento),
     })
     setViewMode('form')
-    setSelectedColaborador(null) // Fecha o modal de detalhes se estiver aberto
+    setSelectedColaborador(null) 
   }
 
   const handleDelete = async (id: number) => {
     if(!confirm('Excluir colaborador?')) return
     await supabase.from('colaboradores').delete().eq('id', id)
     fetchColaboradores()
-    setSelectedColaborador(null) // Fecha o modal de detalhes se estiver aberto
+    setSelectedColaborador(null)
   }
 
   // --- IMPORTAÇÃO / EXPORTAÇÃO ---
@@ -248,11 +248,10 @@ export function Colaboradores() {
     reader.readAsBinaryString(file)
   }
 
-  // --- FILTRAGEM CORRIGIDA (Case Insensitive) ---
+  // --- FILTRAGEM ---
   const filteredData = colaboradores.filter(c => {
     const matchSearch = c.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || c.cpf?.includes(searchTerm)
     
-    // Compara ignorando maiúsculas/minúsculas para evitar erros de filtro vazio
     const matchLider = filterLider 
         ? c.lider_equipe?.toLowerCase() === filterLider.toLowerCase() 
         : true;
@@ -591,18 +590,42 @@ export function Colaboradores() {
               onRefresh={handleRefresh}
             />
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Cargo</label>
-              <input className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.cargo || ''} onChange={e => setFormData({...formData, cargo: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Líder de Equipe</label>
-              <input className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.lider_equipe || ''} onChange={e => setFormData({...formData, lider_equipe: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Tipo</label>
-              <input className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.tipo || ''} onChange={e => setFormData({...formData, tipo: e.target.value})} />
-            </div>
+            {/* CARGO - COM SEARCHABLE SELECT */}
+            <SearchableSelect 
+              key={`cargo-${refreshKey}`}
+              label="Cargo"
+              value={formData.cargo || ''}
+              onChange={(value) => setFormData({...formData, cargo: value})}
+              table="opcoes_cargos"
+              nameField="nome"
+              placeholder="Selecione um cargo"
+              onRefresh={handleRefresh}
+            />
+
+            {/* LÍDER - COM SEARCHABLE SELECT */}
+            <SearchableSelect 
+              key={`lider-${refreshKey}`}
+              label="Líder de Equipe"
+              value={formData.lider_equipe || ''}
+              onChange={(value) => setFormData({...formData, lider_equipe: value})}
+              table="opcoes_lideres"
+              nameField="nome"
+              placeholder="Selecione um líder"
+              onRefresh={handleRefresh}
+            />
+
+            {/* TIPO - COM SEARCHABLE SELECT */}
+            <SearchableSelect 
+              key={`tipo-${refreshKey}`}
+              label="Tipo"
+              value={formData.tipo || ''}
+              onChange={(value) => setFormData({...formData, tipo: value})}
+              table="opcoes_tipos"
+              nameField="nome"
+              placeholder="Selecione um tipo"
+              onRefresh={handleRefresh}
+            />
+
             <div>
               <SearchableSelect 
                 label="Status"

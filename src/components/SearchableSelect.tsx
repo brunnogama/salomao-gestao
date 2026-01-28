@@ -15,10 +15,10 @@ interface SearchableSelectProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  table?: string; // Nome da tabela no Supabase para gerenciar opções
-  nameField?: string; // Campo do nome na tabela (padrão: 'nome')
-  options?: Option[]; // Opções estáticas (se não usar tabela)
-  onRefresh?: () => void; // Callback para atualizar lista após mudanças
+  table?: string;
+  nameField?: string;
+  options?: Option[];
+  onRefresh?: () => void;
   disabled?: boolean;
   className?: string;
 }
@@ -41,7 +41,6 @@ export function SearchableSelect({
   const [options, setOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // Estados para gerenciamento (Add/Edit)
   const [newOptionValue, setNewOptionValue] = useState('');
   const [editingOption, setEditingOption] = useState<{ id: number; name: string } | null>(null);
   
@@ -54,7 +53,6 @@ export function SearchableSelect({
     }).join(' ');
   };
 
-  // Carrega opções da tabela ou usa as externas
   useEffect(() => {
     if (table) {
       fetchOptions();
@@ -71,18 +69,19 @@ export function SearchableSelect({
     setLoading(false);
   };
 
-  // Fecha dropdown ao clicar fora
+  // CORREÇÃO AQUI: Impede o fechamento se estiver no modo de gerenciamento
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      if (isManaging) return; // Não fecha se estiver gerenciando
+      
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setSearchTerm('');
-        setIsManaging(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isManaging]); // Adicionado isManaging na dependência
 
   const getName = (opt: Option) => opt.nome || opt.name || opt.label || '';
   const getId = (opt: Option) => opt.id || 0;
@@ -91,9 +90,8 @@ export function SearchableSelect({
     getName(opt).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const selectedOption = options.find(opt => getName(opt) === value);
+  const selectedOption = options.find(opt => getName(opt).toLowerCase() === value.toLowerCase());
 
-  // --- CRUD OPÇÕES ---
   const handleAddOption = async () => {
     if (!newOptionValue.trim() || !table) return;
     const val = toTitleCase(newOptionValue.trim());
@@ -137,7 +135,6 @@ export function SearchableSelect({
     if (onRefresh) onRefresh();
   };
 
-  // Handler para limpar seleção no botão X
   const handleClearSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange('');
@@ -148,7 +145,6 @@ export function SearchableSelect({
     <div ref={dropdownRef} className={`relative ${className}`}>
       {label && <label className="block text-xs font-bold text-gray-700 uppercase mb-1">{label}</label>}
       
-      {/* TRIGGER DO DROPDOWN */}
       <div 
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`
@@ -162,7 +158,6 @@ export function SearchableSelect({
         </span>
         
         <div className="flex items-center gap-1">
-            {/* Botão limpar (X) - aparece apenas se houver valor */}
             {value && !disabled && (
                 <button 
                     onClick={handleClearSelection}
@@ -176,11 +171,9 @@ export function SearchableSelect({
         </div>
       </div>
 
-      {/* DROPDOWN MENU */}
       {isOpen && !isManaging && (
         <div className="absolute left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-[9999]">
           
-          {/* Header de Busca */}
           <div className="p-2 border-b border-gray-100 bg-gray-50 shrink-0">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-400" />
@@ -196,7 +189,6 @@ export function SearchableSelect({
             </div>
           </div>
 
-          {/* Lista de Opções (Scrollável) */}
           <div className="flex-1 overflow-y-auto custom-scrollbar max-h-60">
             {loading ? (
                 <div className="flex items-center justify-center py-4 text-gray-400">
@@ -214,7 +206,7 @@ export function SearchableSelect({
                         setSearchTerm('');
                         }}
                         className={`w-full px-4 py-2.5 text-left text-sm transition-colors border-b border-gray-50 last:border-0 hover:bg-gray-50 ${
-                        value === getName(opt) 
+                        value.toLowerCase() === getName(opt).toLowerCase()
                             ? 'bg-blue-50 text-blue-900 font-bold' 
                             : 'text-gray-700'
                         }`}
@@ -232,7 +224,6 @@ export function SearchableSelect({
             )}
           </div>
 
-          {/* Footer Gerenciar (Fixo no fundo) */}
           {table && (
             <div className="border-t border-gray-200 bg-gray-50 p-1.5 shrink-0 z-10">
                 <button
@@ -252,7 +243,6 @@ export function SearchableSelect({
         </div>
       )}
 
-      {/* MODAL DE GERENCIAMENTO (Add/Edit/Delete) */}
       {isManaging && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4 animate-in fade-in duration-200"
@@ -262,7 +252,6 @@ export function SearchableSelect({
             className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header Modal */}
             <div className="px-5 py-4 flex justify-between items-center border-b border-gray-100 bg-gray-50">
               <h3 className="font-bold text-base text-gray-800 flex items-center gap-2">
                 <Settings className="h-4 w-4 text-gray-500"/>
@@ -281,7 +270,6 @@ export function SearchableSelect({
             </div>
             
             <div className="p-5">
-              {/* Input Adicionar */}
               <div className="flex gap-2 mb-4">
                 <input 
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#112240] focus:border-transparent placeholder:text-gray-400" 
@@ -301,7 +289,6 @@ export function SearchableSelect({
                 </button>
               </div>
 
-              {/* Lista de Edição */}
               <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                 {options.map(opt => (
                   <div 
@@ -309,7 +296,6 @@ export function SearchableSelect({
                     className="flex items-center justify-between p-2.5 rounded-lg border border-gray-100 bg-gray-50 hover:bg-white hover:border-blue-200 hover:shadow-sm transition-all group"
                   >
                     {editingOption?.id === getId(opt) ? (
-                      // Modo Edição
                       <>
                         <input 
                           className="flex-1 border border-blue-300 rounded px-2 py-1 text-sm mr-2 focus:ring-2 focus:ring-blue-100 outline-none bg-white"
@@ -336,7 +322,6 @@ export function SearchableSelect({
                         </div>
                       </>
                     ) : (
-                      // Modo Visualização
                       <>
                         <span className="text-sm text-gray-700 flex-1 font-medium">{toTitleCase(getName(opt))}</span>
                         <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
